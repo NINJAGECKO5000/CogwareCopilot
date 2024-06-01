@@ -65,7 +65,7 @@ fn main() {
     let peripherals = unsafe { Peripherals::steal() };
 
     info!("Starting Driver!");
-    let mut hp = HyperPixel::new(&peripherals);
+    let hp = HyperPixel::new(&peripherals);
     hp.hyperinit();
     info!("hyperpixel is inited in theory");
     // where to add the rest of the program

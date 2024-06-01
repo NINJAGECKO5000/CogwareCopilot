@@ -29,7 +29,7 @@ impl<'a> HyperPixel<'a> {
         HyperPixel { gpio, spi0 }
     }
 
-    pub fn hyperinit(&mut self) {
+    pub fn hyperinit(mut self) {
         self.init_gpio();
         self.init_display();
     }
