@@ -19,9 +19,9 @@ pub use crate::time::TimeManagerInterface;
 // use crate::{Color, Coordinates, FrameBufferInterface};
 use core::{cmp, mem};
 
-pub const SCREEN_WIDTH: u32 = 1920;
+pub const SCREEN_WIDTH: u32 = 480;
 pub const SCREEN_WIDTH_NO_MARGIN: u32 = SCREEN_WIDTH - SCREEN_MARGIN;
-pub const SCREEN_HEIGHT: u32 = 1280;
+pub const SCREEN_HEIGHT: u32 = 480;
 pub const SCREEN_HEIGHT_NO_MARGIN: u32 = SCREEN_HEIGHT - SCREEN_MARGIN;
 pub const SCREEN_MARGIN: u32 = 20;
 pub const UI_SCORE_COLOR: Color = color::WHITE_COLOR;
@@ -69,8 +69,8 @@ fn draw(fb: &mut impl FrameBufferInterface) {
     let mut message_buf = [0u8; 12 * mem::size_of::<char>()];
     let text = format_to_buffer(&mut message_buf).expect("TODO: panic message");
 
-    let mut x = 960;
-    let y = 540;
+    let mut x = 240;
+    let y = 240;
     for c in text.chars() {
         // right distance after each character
         x += LETTER_WIDTH as u32;

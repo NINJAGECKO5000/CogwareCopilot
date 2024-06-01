@@ -10,6 +10,7 @@ use crate::logger::IrisLogger;
 use core::panic::PanicInfo;
 use cortex_a::asm;
 use cortex_a::registers::SCTLR_EL1;
+use drivers::HyperPixel;
 use space_invaders::run_test;
 
 mod boot;
@@ -22,13 +23,15 @@ mod uart_pl011;
 
 use crate::mailbox::{max_clock_speed, set_clock_speed};
 use crate::mmio::PL011_UART_START;
-use crate::time::TIME_MANAGER;
+// use crate::time::TIME_MANAGER;
 use crate::uart_pl011::PL011Uart;
 use log::{debug, error, info};
 use tock_registers::interfaces::ReadWriteable;
 
 static IRIS_LOGGER: IrisLogger = IrisLogger::new();
 pub static PL011_UART: PL011Uart = unsafe { PL011Uart::new(PL011_UART_START) };
+
+pub mod drivers;
 
 mod mmio {
     pub const IO_BASE: usize = 0x3F00_0000;
@@ -50,7 +53,7 @@ unsafe fn kernel_init() -> ! {
     IRIS_LOGGER.init().unwrap();
     let max_clock_speed = max_clock_speed();
     info!("Kernel speed: {:?}", max_clock_speed);
-    set_clock_speed(max_clock_speed.unwrap());
+    set_clock_speed(1_000_000_000);
     main();
     panic!()
 }
@@ -58,7 +61,11 @@ unsafe fn kernel_init() -> ! {
 fn main() {
     info!("main");
     let fb = mailbox::lfb_init(0).expect("Failed to init framebuffer");
-    println!("Starting game");
+
+    info!("Starting Driver!");
+    let mut hp = HyperPixel::new().expect("Failed to create Hyperpixel");
+    hp.hyperinit();
+    info!("hyperpixel is inited in theory");
     // where to add the rest of the program
     run_test(fb);
 }

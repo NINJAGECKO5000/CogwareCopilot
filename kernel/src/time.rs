@@ -1,5 +1,6 @@
 use crate::mmio::TIMER_REG_BASE;
 use core::time::Duration;
+use cortex_a::asm::nop;
 use tock_registers::interfaces::Readable;
 use tock_registers::register_bitfields;
 use tock_registers::registers::ReadOnly;
@@ -38,6 +39,21 @@ impl space_invaders::TimeManagerInterface for BcmGpuTimer {
         let microseconds = (upper << 32) | lower;
         Duration::from_micros(microseconds)
     }
+}
+
+pub fn now(reg: &mut ArmTimeRegisters) -> Duration {
+    let lower = reg.counter_lower.get() as u64;
+    let upper = reg.counter_higher.get() as u64;
+    let microseconds = (upper << 32) | lower;
+    Duration::from_micros(microseconds)
+}
+
+pub fn delay(duration: Duration) {
+    let ptr = TIMER_REG_BASE as *mut ArmTimeRegisters;
+    let registers = unsafe { &mut *ptr };
+    let target = now(registers) + duration;
+
+    while now(registers) <= target {}
 }
 
 pub static TIME_MANAGER: BcmGpuTimer = BcmGpuTimer::new();
