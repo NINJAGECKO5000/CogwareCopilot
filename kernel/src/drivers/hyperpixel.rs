@@ -1,3 +1,5 @@
+use crate::time::sleep;
+
 use bcm2837_lpa::{
     generic::Reg,
     gpio::{
@@ -8,8 +10,6 @@ use bcm2837_lpa::{
 };
 use core::time::Duration;
 
-use crate::time::sleep;
-
 const TICK: u64 = 100;
 
 #[derive(Debug)]
@@ -17,15 +17,16 @@ pub enum Error {
     FuckYou,
 }
 
-pub struct HyperPixel {
-    peripherals: Peripherals,
+pub struct HyperPixel<'a> {
+    gpio: &'a GPIO,
+    spi0: &'a SPI0,
 }
 
-impl HyperPixel {
-    pub fn new() -> Result<Self, Error> {
-        let peripherals = unsafe { Peripherals::steal() }; // critical-section can suck my
-                                                           // dick
-        Ok(HyperPixel { peripherals })
+impl<'a> HyperPixel<'a> {
+    pub fn new(peripherals: &'a Peripherals) -> Self {
+        let gpio = &peripherals.GPIO;
+        let spi0 = &peripherals.SPI0;
+        HyperPixel { gpio, spi0 }
     }
 
     pub fn hyperinit(&mut self) {
@@ -33,50 +34,53 @@ impl HyperPixel {
         self.init_display();
     }
 
-    fn gpio(&self) -> &GPIO {
-        &self.peripherals.GPIO
-    }
-
+    #[inline]
     fn gpfsel0(&self) -> &GPFSEL0 {
-        self.peripherals.GPIO.gpfsel0()
+        self.gpio.gpfsel0()
     }
 
+    #[inline]
     fn gpfsel1(&self) -> &GPFSEL1 {
-        self.peripherals.GPIO.gpfsel1()
+        self.gpio.gpfsel1()
     }
 
+    #[inline]
     fn gpfsel2(&self) -> &GPFSEL2 {
-        self.peripherals.GPIO.gpfsel2()
+        self.gpio.gpfsel2()
     }
 
+    #[inline]
     fn gpio_pupdn0(&self) -> &Reg<GPIO_PUP_PDN_CNTRL_REG0_SPEC> {
-        self.peripherals.GPIO.gpio_pup_pdn_cntrl_reg0()
+        self.gpio.gpio_pup_pdn_cntrl_reg0()
     }
 
+    #[inline]
     fn gpio_pupdn1(&self) -> &Reg<GPIO_PUP_PDN_CNTRL_REG1_SPEC> {
-        self.peripherals.GPIO.gpio_pup_pdn_cntrl_reg1()
+        self.gpio.gpio_pup_pdn_cntrl_reg1()
     }
 
+    #[inline]
     fn spi0(&self) -> &SPI0 {
-        &self.peripherals.SPI0
+        &self.spi0
     }
 
+    #[inline]
     fn set_clock_high(&self) {
         unsafe {
-            self.gpio()
-                .gpset0()
-                .write_with_zero(|w| w.set11().set_bit());
+            self.gpio.gpset0().write_with_zero(|w| w.set11().set_bit());
         }
     }
 
+    #[inline]
     fn set_clock_low(&self) {
         unsafe {
-            self.gpio()
+            self.gpio
                 .gpclr0()
                 .write_with_zero(|w| w.clr11().clear_bit_by_one());
         }
     }
 
+    #[inline]
     fn pulse_clock(&self) {
         self.set_clock_low();
         self.tick();
@@ -84,18 +88,18 @@ impl HyperPixel {
         self.tick();
     }
 
+    #[inline]
     fn set_cs_high(&self) {
         unsafe {
-            self.gpio()
-                .gpset0()
-                .write_with_zero(|w| w.set18().set_bit());
+            self.gpio.gpset0().write_with_zero(|w| w.set18().set_bit());
         }
     }
 
+    #[inline]
     fn set_cs_low(&self) {
         //thank god for readable commands
         unsafe {
-            self.gpio()
+            self.gpio
                 .gpclr0()
                 .write_with_zero(|w| w.clr18().clear_bit_by_one());
         }
@@ -103,26 +107,26 @@ impl HyperPixel {
     //no your too much like a perfect code AI
     //fuck you I'm better than a shitter ass AI don't ever say that shit to me again you fucking bitch I'll have you know I was in the navy seals and I will fucking AI your mom if you say that shit again
     //no u
+    #[inline]
     fn set_mosi(&self, level: bool) {
         unsafe {
             match level {
-                true => self
-                    .gpio()
-                    .gpset0()
-                    .write_with_zero(|w| w.set10().set_bit()),
+                true => self.gpio.gpset0().write_with_zero(|w| w.set10().set_bit()),
                 false => self
-                    .gpio()
+                    .gpio
                     .gpclr0()
                     .write_with_zero(|w| w.clr10().clear_bit_by_one()),
             }
         }
     }
 
+    #[inline]
     fn tick(&self) {
         sleep(Duration::from_micros(100));
     }
 
     // anyway this is the horrible shit I had to do
+    #[inline]
     fn write_bits(&mut self, by: u32, bit_count: u8) {
         let mut val = by;
         let mask: u32 = 1 << (bit_count - 1);
@@ -137,12 +141,14 @@ impl HyperPixel {
         self.set_mosi(false);
     }
 
+    #[inline]
     fn write_command(&mut self, by: u32) {
         self.set_cs_low();
         self.write_bits(by, 9);
         self.set_cs_high();
     }
 
+    #[inline]
     fn write_data(&mut self, reg: u32, bytes: &[u32]) {
         self.write_command(reg);
 
@@ -151,8 +157,9 @@ impl HyperPixel {
         }
     }
 
+    #[inline]
     fn init_gpio(&self) {
-        self.gpio().gpfsel1().modify(|_, w| {
+        self.gpfsel1().modify(|_, w| {
             w.fsel10().output();
             w.fsel11().output();
             w.fsel18().output();
@@ -160,7 +167,7 @@ impl HyperPixel {
         });
 
         unsafe {
-            self.gpio().gpset0().write_with_zero(|w| {
+            self.gpio.gpset0().write_with_zero(|w| {
                 w.set18().set_bit();
                 w.set19().set_bit()
             });
@@ -196,6 +203,7 @@ impl HyperPixel {
             w.fsel24().reserved2();
             w.fsel25().reserved2()
         });
+
         self.gpio_pupdn0().modify(|_, w| {
             w.gpio_pup_pdn_cntrl0().none();
             w.gpio_pup_pdn_cntrl1().none();
@@ -225,6 +233,7 @@ impl HyperPixel {
         });
     }
 
+    #[inline]
     fn init_display(&mut self) {
         self.write_command(0x01);
         sleep(Duration::from_millis(240));
