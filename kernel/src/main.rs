@@ -7,6 +7,7 @@
 #![feature(asm_const)]
 
 use crate::logger::IrisLogger;
+use bcm2837_lpa::Peripherals;
 use core::panic::PanicInfo;
 use cortex_a::asm;
 use cortex_a::registers::SCTLR_EL1;
@@ -61,9 +62,10 @@ unsafe fn kernel_init() -> ! {
 fn main() {
     info!("main");
     let fb = mailbox::lfb_init(0).expect("Failed to init framebuffer");
+    let peripherals = unsafe { Peripherals::steal() };
 
     info!("Starting Driver!");
-    let mut hp = HyperPixel::new().expect("Failed to create Hyperpixel");
+    let hp = HyperPixel::new(&peripherals);
     hp.hyperinit();
     info!("hyperpixel is inited in theory");
     // where to add the rest of the program
