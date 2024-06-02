@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-KERNEL_ELF=target/aarch64-unknown-none-softfloat/release/bare-metal-spaceinvaders
+KERNEL_ELF=target/aarch64-unknown-none-softfloat/release/cogware-copilot
 
 ## build the kernel
 RUSTFLAGS="-C link-arg=-T$(pwd)/linker/rpi_3b+.ld -C target-cpu=cortex-a53" cargo rustc \
