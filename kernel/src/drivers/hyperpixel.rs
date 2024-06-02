@@ -10,7 +10,7 @@ use bcm2837_lpa::{
 };
 use core::time::Duration;
 
-const TICK: u64 = 100;
+const TICK_MICROS: u64 = 100;
 
 #[derive(Debug)]
 pub enum Error {
@@ -104,9 +104,7 @@ impl<'a> HyperPixel<'a> {
                 .write_with_zero(|w| w.clr18().clear_bit_by_one());
         }
     }
-    //no your too much like a perfect code AI
-    //fuck you I'm better than a shitter ass AI don't ever say that shit to me again you fucking bitch I'll have you know I was in the navy seals and I will fucking AI your mom if you say that shit again
-    //no u
+
     #[inline]
     fn set_mosi(&self, level: bool) {
         unsafe {
@@ -122,19 +120,15 @@ impl<'a> HyperPixel<'a> {
 
     #[inline]
     fn tick(&self) {
-        sleep(Duration::from_micros(100));
+        sleep(Duration::from_micros(TICK_MICROS));
     }
 
     // anyway this is the horrible shit I had to do
     #[inline]
     fn write_bits(&mut self, by: u32, bit_count: u8) {
-        let mut val = by;
-        let mask: u32 = 1 << (bit_count - 1);
-
-        for _ in 0..bit_count {
-            let gpio_level = val & mask != 0;
+        for i in 0..bit_count {
+            let gpio_level = (by >> i) & 1 != 0;
             self.set_mosi(gpio_level);
-            val = val << 1;
             self.pulse_clock();
         }
 
