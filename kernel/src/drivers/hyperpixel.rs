@@ -126,7 +126,7 @@ impl<'a> HyperPixel<'a> {
     // anyway this is the horrible shit I had to do
     #[inline]
     fn write_bits(&mut self, by: u32, bit_count: u8) {
-        for i in 0..bit_count {
+        for i in (0..bit_count).rev() {
             let gpio_level = (by >> i) & 1 != 0;
             self.set_mosi(gpio_level);
             self.pulse_clock();
