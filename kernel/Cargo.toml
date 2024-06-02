@@ -1,5 +1,5 @@
 [package]
-name = "bare-metal-spaceinvaders"
+name = "cogware-copilot"
 version = "0.1.0"
 edition = "2021"
 
@@ -14,8 +14,8 @@ log = "0.4.19"
 bcm2837-lpa = { version = "0.4.0", features = ["critical-section"]}
 critical-section = "1.1.2"
 
-[profile.release]
-lto = true
+# [profile.release]
+# lto = true
 # Platform specific dependencies
 [target.'cfg(target_arch = "aarch64")'.dependencies]
 aarch64-cpu = { version = "9.x.x" }

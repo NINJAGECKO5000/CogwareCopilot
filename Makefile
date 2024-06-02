@@ -10,7 +10,7 @@ QEMU_RELEASE_ARGS = -serial stdio -display none -vnc :5
 #QEMU_RELEASE_ARGS = -d in_asm -display none
 LINKER_FILE       = $(shell pwd)/linker/rpi_3b+.ld
 RUSTC_MISC_ARGS   = -C target-cpu=cortex-a53
-BIN_NAME          = bare-metal-spaceinvaders
+BIN_NAME          = cogware-copilot
 
 # Export for build.rs
 RUSTFLAGS          = -C link-arg=-T$(LINKER_FILE) $(RUSTC_MISC_ARGS)
