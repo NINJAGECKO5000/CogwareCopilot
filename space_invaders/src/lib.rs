@@ -69,8 +69,8 @@ fn draw(fb: &mut impl FrameBufferInterface) {
     let mut message_buf = [0u8; 12 * mem::size_of::<char>()];
     let text = format_to_buffer(&mut message_buf).expect("TODO: panic message");
 
-    let mut x = 240;
-    let y = 240;
+    let mut x = ((SCREEN_WIDTH / 2) - 60);
+    let y = ((SCREEN_HEIGHT / 2) - 10);
     for c in text.chars() {
         // right distance after each character
         x += LETTER_WIDTH as u32;
