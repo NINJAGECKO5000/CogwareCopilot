@@ -25,7 +25,7 @@ pub trait FrameBufferInterface {
         for (row_i, row) in char_raster.raster().iter().enumerate() {
             for (col_i, pixel) in row.iter().enumerate() {
                 let actual_color = if pixel.count_zeros() == 8 {
-                    color::BLUE_COLOR
+                    color::BLACK_COLOR
                 } else {
                     color
                 };
