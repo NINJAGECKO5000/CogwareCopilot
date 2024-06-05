@@ -2216,13 +2216,24 @@ impl EMMCController {
             div += 1
         }
 
-        let control1 = self.emmc_get_clock_divider2(div)
-            | DTO << CONTROL1::DATA_TOUNIT.val(0xf).value
-            | CONTROL1::CLK_GENSEL.val(0).value
-            | CONTROL1::CLK_EN.val(1).value
-            | CONTROL1::CLK_INTLEN.val(1).value;
-        info!("control1: {:?}", control1);
-        self.registers.EMMC_CONTROL1.set(control1);
+       // let control1 = self.emmc_get_clock_divider2(div)
+  //          | DTO << CONTROL1::DATA_TOUNIT.val(0xf).value
+  //          | CONTROL1::CLK_GENSEL.val(0).value
+   //         | CONTROL1::CLK_EN.val(1).value
+   //         | CONTROL1::CLK_INTLEN.val(1).value;
+            periphs.EMMC.control1().modify(|_, w| unsafe {
+                w.data_tounit()
+                .bits(0xE)
+                 .clk_gensel()
+                 .divided()
+                  .clk_en().bit(true)
+                 .clk_intlen().bit(true)
+                 });
+
+
+
+      //  info!("control1: {:?}", control1);
+       // self.registers.EMMC_CONTROL1.set(control1);
 
         /* Wait for clock to be stablized */
         let mut td = 0; // Zero time difference
@@ -2239,6 +2250,8 @@ impl EMMCController {
             else {
                 td = tick_difference(start_time, timer_get_tick_count());
             } // Time difference between start time and now
+            info!("TD:   {}", td);
+            info!("TICK: {}", timer_get_tick_count());
         }
 
         if (td >= 100000) {
