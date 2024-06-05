@@ -67,7 +67,7 @@ fn main() {
     let peripherals = unsafe { Peripherals::steal() };
 
     info!("Starting Driver!");
-    HyperPixel::new(&peripherals).hyperinit();
+    // HyperPixel::new(&peripherals).hyperinit();
     EMMC_CONT.emmc_init_card(&peripherals);
     //info!("hyperpixel is inited in theory");
     // where to add the rest of the program
