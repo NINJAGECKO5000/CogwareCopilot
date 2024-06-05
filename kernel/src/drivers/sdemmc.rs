@@ -1585,7 +1585,7 @@ impl EMMCController {
     pub fn emmc_wait_for_interrupt(&self, mask: u32) -> SdResult {
         let mut time_diff: u64 = 0; // Zero time difference
         let mut start_time: u64 = 0; // Zero start time
-        let t_mask: u32 = mask | INT_ERROR_MASK as u32; // Add fatal error masks to mask provided
+        let t_mask: u32 = mask | INT_ERROR_MASK as u32; // Add fatal error masks to mask provided INT_ERROR_MASK=L805 bunch of OR's
 
         while (self.registers.EMMC_INTERRUPT.get() & t_mask) == 0 && (time_diff < 1000000) {
             if start_time == 0 {
@@ -2314,14 +2314,14 @@ impl EMMCController {
         // Set SD bus power VDD1 to 3.3V at initialization.
         //
         // The RPi 4's controller is more compliant with the standard.
-        // This additional step was not needed on the RPi 1-3
-        self.registers.EMMC_CONTROL0.set(0);
+        // This additional step was not needed on the RPi 1-3 YOU HEARD WHAT HE MAN SAID THIS GETS COMMENTED
+        /*self.registers.EMMC_CONTROL0.set(0);
         timer_wait_micro(1);
         self.registers
             .EMMC_CONTROL0
             .write(CONTROL0::BUSVOLTAGE::V3_3 + CONTROL0::BUSPOWER.val(1));
         self.registers.EMMC_CONTROL1.set(0);
-        timer_wait_micro(1);
+        timer_wait_micro(1); */
 
         /* Set clock to setup frequency */
         let mut resp = self.emmc_set_clock2(periphs, FREQ_SETUP as u32);
