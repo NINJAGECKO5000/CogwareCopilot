@@ -8,7 +8,7 @@ use crate::drivers::sdemmc::rpi4_constants::*;
 use crate::mmio::EMMC_START;
 use crate::time::{get_sys_tick_count, now, sleep};
 use crate::{print, time};
-use bcm2837_lpa::Peripherals;
+use bcm2837_lpa::{Peripherals, EMMC};
 use core::time::Duration;
 use core::{convert::TryInto, fmt::Debug};
 use log::info;
@@ -2205,7 +2205,7 @@ impl EMMCController {
     /// RETURN:
     /// - EMMC_ERROR_CLOCK - A fatal error occurred setting the clock
     /// - EMMC_OK - the clock was changed to given frequency
-    pub fn emmc_set_clock2(&self, periphs: &Peripherals, freq: u32) -> SdResult {
+    pub fn emmc_set_clock2(&self, emmc: &EMMC, freq: u32) -> SdResult {
         // A divisor of zero doesnt work. I think a divisor of 1 equates to half the base clock rate.
         // TODO: need to find confirmation of the above.
         assert!(freq < BASE_CLOCK as u32);
@@ -2216,30 +2216,22 @@ impl EMMCController {
             div += 1
         }
 
-       // let control1 = self.emmc_get_clock_divider2(div)
-  //          | DTO << CONTROL1::DATA_TOUNIT.val(0xf).value
-  //          | CONTROL1::CLK_GENSEL.val(0).value
-   //         | CONTROL1::CLK_EN.val(1).value
-   //         | CONTROL1::CLK_INTLEN.val(1).value;
-            periphs.EMMC.control1().modify(|_, w| unsafe {
-                w.data_tounit()
+        emmc.control1().modify(|_, w| unsafe {
+            w.data_tounit()
                 .bits(0xE)
-                 .clk_gensel()
-                 .divided()
-                  .clk_en().bit(true)
-                 .clk_intlen().bit(true)
-                 });
-
-
-
-      //  info!("control1: {:?}", control1);
-       // self.registers.EMMC_CONTROL1.set(control1);
+                .clk_gensel()
+                .divided()
+                .clk_en()
+                .bit(true)
+                .clk_intlen()
+                .bit(true)
+        });
 
         /* Wait for clock to be stablized */
         let mut td = 0; // Zero time difference
         let mut start_time = 0; // Zero start time
 
-        while (periphs.EMMC.control1().read().clk_stable().bit() == false // Clock not stable yet
+        while (emmc.control1().read().clk_stable().bit() == false // Clock not stable yet
             && (td < 100000))
         // Timeout not reached
         {
@@ -2275,15 +2267,15 @@ impl EMMCController {
     /// RETURN:
     /// - EMMC_ERROR_RESET - A fatal error occurred resetting the SD Card
     /// - EMMC_OK - SD Card reset correctly
-    pub fn emmc_reset_card(&self, periphs: &Peripherals) -> SdResult {
+    pub fn emmc_reset_card(&self, emmc: &EMMC) -> SdResult {
         let mut td = 0; // Zero time difference
         let mut start_time = 0; // Zero start time
 
-        self.registers.EMMC_CONTROL1.write(CONTROL1::SRST_HC.val(1)); // Reset the complete host circuit
+        emmc.control1().write(|w| w.srst_hc().bit(true)); // Reset the complete host circuit
         timer_wait_micro(10); // Wait 10 microseconds
 
         info!("EMMC: reset card.");
-        while (self.registers.EMMC_CONTROL1.matches_all(CONTROL1::SRST_HC.val(1))) // Host circuit reset not clear yet
+        while (emmc.control1().read().srst_hc() == true) // Host circuit reset not clear yet
                 && (td < 100000)
         // Timeout not reached
         {
@@ -2304,12 +2296,9 @@ impl EMMCController {
             return SdResult::EMMC_ERROR_RESET; // Return reset SD Card error
         }
 
-        self.registers
-            .EMMC_CONTROL1
-            .write(CONTROL1::SRST_DATA.val(1)); // reset data lines
+        emmc.control1().write(|w| w.srst_data().bit(true)); // reset data lines
         timer_wait_micro(10); // Wait 10 microseconds
-
-        self.registers.EMMC_CONTROL1.set(0);
+        emmc.control1().reset();
 
         // Set SD bus power VDD1 to 3.3V at initialization.
         //
@@ -2324,18 +2313,21 @@ impl EMMCController {
         timer_wait_micro(1); */
 
         /* Set clock to setup frequency */
-        let mut resp = self.emmc_set_clock2(periphs, FREQ_SETUP as u32);
+        let mut resp = self.emmc_set_clock2(emmc, FREQ_SETUP as u32);
         if resp != SdResult::EMMC_OK {
             return resp;
         } // Set low speed setup frequency (400Khz)
 
         // Enable interrupts and interrupt mask
-        self.registers.EMMC_IRPT_EN.set(0x0);
-        let mask = !INTERRUPT::CARD_INT.val(1).value;
-        self.registers.EMMC_IRPT_MASK.set(mask);
-        self.registers.EMMC_INTERRUPT.set(!0);
-        let int_en = self.registers.EMMC_IRPT_EN.get() & !self.registers.EMMC_INTERRUPT.get();
-        self.registers.EMMC_IRPT_EN.set(int_en);
+        emmc.irpt_en().reset();
+        emmc.irpt_mask().write(|w| w.card().bit(true));
+        unsafe {
+            emmc.interrupt().write(|w| w.bits(!0));
+        }
+        let int_en = emmc.irpt_en().read().bits() & !emmc.interrupt().read().bits();
+        unsafe {
+            emmc.irpt_en().write(|w| w.bits(int_en));
+        }
 
         /* Reset our card structure entries */
         unsafe {
@@ -2685,7 +2677,8 @@ impl EMMCController {
     /// - EMMC_OK indicates the current card successfully initialized.
     /// - !EMMC_OK if card initialize failed with code identifying error.
     pub fn emmc_init_card(&self, periphs: &Peripherals) -> SdResult {
-        let mut resp = self.emmc_reset_card(periphs); // Reset the card.
+        let emmc = &periphs.EMMC;
+        let mut resp = self.emmc_reset_card(emmc); // Reset the card.
 
         if (resp != SdResult::EMMC_OK) {
             return resp;
@@ -2716,7 +2709,7 @@ impl EMMCController {
             // No response to SEND_IF_COND, treat as an old card.
             _ => {
                 // If there appears to be a command in progress, reset the card.
-                resp = self.emmc_reset_card(periphs);
+                resp = self.emmc_reset_card(emmc);
                 if self.registers.EMMC_STATUS.read(STATUS::CMD_INHIBIT) != 0
                     && (resp != SdResult::EMMC_OK)
                 {
@@ -2756,7 +2749,7 @@ impl EMMCController {
         }
 
         // At this point, set the clock to full speed
-        resp = self.emmc_set_clock2(periphs, FREQ_NORMAL as u32);
+        resp = self.emmc_set_clock2(emmc, FREQ_NORMAL as u32);
         if (resp != SdResult::EMMC_OK) {
             return self.emmc_debug_response(resp);
         }
