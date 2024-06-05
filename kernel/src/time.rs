@@ -1,9 +1,12 @@
 use crate::mmio::TIMER_REG_BASE;
 use core::time::Duration;
+use cortex_a::asm::barrier;
+use cortex_a::registers::{CNTFRQ_EL0, CNTPCT_EL0};
 use tock_registers::interfaces::Readable;
 use tock_registers::register_bitfields;
 use tock_registers::registers::ReadOnly;
 
+const NS_PER_S: u64 = 1_000_000_000;
 static mut REGISTERS: *mut ArmTimeRegisters = TIMER_REG_BASE as *mut ArmTimeRegisters;
 
 register_bitfields! {
@@ -35,4 +38,13 @@ pub fn sleep(duration: Duration) {
     let target = now() + duration;
 
     while now() <= target {}
+}
+
+pub fn get_sys_tick_count() -> u64 {
+    barrier::isb(barrier::SY);
+    CNTPCT_EL0.get()
+}
+
+pub fn resolution() -> Duration {
+    Duration::from_nanos(NS_PER_S / (CNTFRQ_EL0.get() as u64))
 }

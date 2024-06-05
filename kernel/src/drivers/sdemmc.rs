@@ -6,8 +6,8 @@
 
 use crate::drivers::sdemmc::rpi4_constants::*;
 use crate::mmio::EMMC_START;
-use crate::print;
-use crate::time::{now, sleep};
+use crate::time::{get_sys_tick_count, now, sleep};
+use crate::{print, time};
 use core::time::Duration;
 use core::{convert::TryInto, fmt::Debug};
 use log::info;
@@ -1479,13 +1479,13 @@ fn timer_wait_micro(delay: u64) {
 
 /// Gets current system counter value
 fn timer_get_tick_count() -> u64 {
-    now().as_nanos() as u64
+    get_sys_tick_count()
 }
 
 /// Given two TICKCOUNT values, calculates microseconds between them.
 fn tick_difference(start_time: u64, tick_count: u64) -> u64 {
     let tick_diff = tick_count - start_time;
-    (tick_diff * now().as_nanos() as u64) / 1000 // 1 ns == 1000 us
+    (tick_diff * time::resolution().as_nanos() as u64) / 1000 // 1 ns == 1000 us
 }
 
 /// Representation of the SDHOST controller.
