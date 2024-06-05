@@ -1499,6 +1499,7 @@ impl BlockDevice for &EMMCController {
     /// Read one or more blocks, starting at the given block index.
     fn read(
         &self,
+        emmc: &EMMC,
         blocks: &mut [Block],
         start_block_idx: BlockIdx,
         reason: &str,
@@ -1528,8 +1529,13 @@ impl BlockDevice for &EMMCController {
             // - This is still safe as it satifies all (of from_raw_parts_mut) usage conditions.
             buff = core::slice::from_raw_parts_mut(ptr, len);
         }
-        let res =
-            &EMMC_CONT.emmc_transfer_blocks(start_block_idx.0, num_blocks as u32, &mut buff, false);
+        let res = &EMMC_CONT.emmc_transfer_blocks(
+            emmc,
+            start_block_idx.0,
+            num_blocks as u32,
+            &mut buff,
+            false,
+        );
         match res {
             SdResult::EMMC_OK => Ok(()),
             _ => Err(*res),
@@ -1557,23 +1563,23 @@ impl EMMCController {
         }
     }
 
-    pub fn emmc_debug_response(&self, resp: SdResult) -> SdResult {
+    pub fn emmc_debug_response(&self, emmc: &EMMC, resp: SdResult) -> SdResult {
         info!(
             "EMMC: STATUS: 0x{:08x}, CONTROL1: 0x{:08x}, INTERRUPT: 0x{:08x}\n",
-            self.registers.EMMC_STATUS.get(),
-            self.registers.EMMC_CONTROL1.get(),
-            self.registers.EMMC_INTERRUPT.get()
+            emmc.status().read().bits(),
+            emmc.control1().read().bits(),
+            emmc.interrupt().read().bits()
         );
         info!(
             "EMMC: CMD {:?}, resp: {:?}, RESP3: 0x{:08x}, RESP2: 0x{:08x}, RESP1: 0x{:08x}, RESP0: 0x{:08x}\n",
             unsafe { EMMC_CARD.last_cmd.cmd_name },
             resp,
-            self.registers.EMMC_RESP3.get(),
-            self.registers.EMMC_RESP2.get(),
-            self.registers.EMMC_RESP1.get(),
-            self.registers.EMMC_RESP0.get()
+            emmc.resp3().read().bits(),
+            emmc.resp2().read().bits(),
+            emmc.resp1().read().bits(),
+            emmc.resp0().read().bits(),
         );
-        return resp;
+        resp
     }
     /// Given an interrupt mask, this function loops polling for the condition (for up to 1 second).
     ///
@@ -1582,12 +1588,12 @@ impl EMMCController {
     /// - EMMC_ERROR - an identifiable error occurred
     /// - EMMC_OK - the wait completed with a mask state as requested
     /// --------------------------------------------------------------------------
-    pub fn emmc_wait_for_interrupt(&self, mask: u32) -> SdResult {
+    pub fn emmc_wait_for_interrupt(&self, emmc: &EMMC, mask: u32) -> SdResult {
         let mut time_diff: u64 = 0; // Zero time difference
         let mut start_time: u64 = 0; // Zero start time
         let t_mask: u32 = mask | INT_ERROR_MASK as u32; // Add fatal error masks to mask provided INT_ERROR_MASK=L805 bunch of OR's
 
-        while (self.registers.EMMC_INTERRUPT.get() & t_mask) == 0 && (time_diff < 1000000) {
+        while (emmc.interrupt().read().bits() & t_mask) == 0 && (time_diff < 1000000) {
             if start_time == 0 {
                 start_time = timer_get_tick_count()
             }
@@ -1597,43 +1603,49 @@ impl EMMCController {
             } // Time difference between start time and now
         }
 
-        let ival = self.registers.EMMC_INTERRUPT.get(); // Fetch all the interrupt flags
+        let ival = emmc.interrupt().read().bits(); // Fetch all the interrupt flags
 
         if time_diff >= 1000000                         // No response recieved, timeout occurred
-            || (ival & INT_CMD_TIMEOUT as u32) != 0     // Command timeout occurred 
-            || (ival & INT_DATA_TIMEOUT as u32) != 0
+            || emmc.interrupt().read().cto_err().bit()  // Command timeout occurred 
+            || emmc.interrupt().read().dto_err().bit()
         // Data timeout occurred
         {
             info!(
                 "EMMC: Wait for interrupt, MASK: 0x{:08x}, STATUS: 0x{:08x}, iVAL: 0x{:08x}, RESP0: 0x{:08x}, time_diff: {}\n",
                 mask,
-                self.registers.EMMC_STATUS.get(),
+                emmc.status().read().bits(),
                 ival,
-                self.registers.EMMC_RESP0.get(),
+                emmc.resp0().read().bits(),
                 time_diff
             );
 
             // Clear the interrupt register completely.
-            self.registers.EMMC_INTERRUPT.set(ival);
+            emmc.interrupt().reset(); // I am once again not sure if this is equivalent to that ^
+
             return SdResult::EMMC_TIMEOUT; // Return EMMC_TIMEOUT
-        } else if (ival & INT_ERROR_MASK as u32) != 0 {
+        }
+
+        if (ival & INT_ERROR_MASK as u32) != 0 {
             info!(
                 "EMMC: Error waiting for interrupt :{}, :{}, :{}\n",
-                self.registers.EMMC_STATUS.get(),
+                emmc.status().read().bits(),
                 ival,
-                self.registers.EMMC_RESP0.get()
+                emmc.resp0().read().bits()
             );
 
             // Clear the interrupt register completely.
-            self.registers.EMMC_INTERRUPT.set(ival);
+
+            emmc.interrupt().reset(); // I am once again again not sure if this is equivalent to that ^
 
             return SdResult::EMMC_ERROR; // Return EMMC_ERROR
         }
 
         // Clear the interrupt we were waiting for, leaving any other (non-error) interrupts.
-        self.registers.EMMC_INTERRUPT.set(mask); // Clear any interrupt we are waiting on
+        unsafe {
+            emmc.interrupt().set_bits(|w| w.bits(mask));
+        }
 
-        return SdResult::EMMC_OK;
+        SdResult::EMMC_OK
     }
 
     /// Waits for up to 1 second for any command that may be in progress.
@@ -1641,12 +1653,12 @@ impl EMMCController {
     /// **Returns:**
     /// - EMMC_BUSY - the command was not completed within 1 second period
     /// - EMMC_OK - the wait completed sucessfully
-    pub fn emmc_wait_for_command(&self) -> SdResult {
+    pub fn emmc_wait_for_command(&self, emmc: &EMMC) -> SdResult {
         let mut time_diff: u64 = 0; // Zero time difference
         let mut start_time: u64 = 0; // Zero start time
 
-        while (self.registers.EMMC_STATUS.matches_all(STATUS::CMD_INHIBIT.val(1)))	  // Command inhibit signal
-            && (self.registers.EMMC_INTERRUPT.get() & INT_ERROR_MASK as u32) == 0   // No error occurred
+        while (emmc.status().read().cmd_inhibit().bit() == true)	  // Command inhibit signal
+            && emmc.interrupt().read().ccrc_err().bit() == false   // No error occurred
             && (time_diff < 1000000)
         // Timeout not reached
         {
@@ -1657,19 +1669,18 @@ impl EMMCController {
             } // Time difference between start and now
         }
 
-        if (time_diff >= 1000000)
-            || (self.registers.EMMC_INTERRUPT.get() & INT_ERROR_MASK as u32) != 0
+        if (time_diff >= 1000000) || emmc.interrupt().read().ccrc_err().bit() == true
         // Error occurred or it timed out
         {
             info!(
                 "EMMC: Wait for command aborted, STATUS: 0x{:08x}, INTERRUPT: 0x{:08x}, RESP0: 0x{:08x}\n",
-                self.registers.EMMC_STATUS.get(),
-                self.registers.EMMC_INTERRUPT.get(),
-                self.registers.EMMC_RESP0.get()
+                emmc.status().read().bits(),
+                emmc.interrupt().read().bits(),
+                emmc.resp0().read().bits()
             );
             return SdResult::EMMC_BUSY; // return EMMC_BUSY
         }
-        return SdResult::EMMC_OK; // return EMMC_OK
+        SdResult::EMMC_OK // return EMMC_OK
     }
 
     /// Waits for up to 1 second for any data transfer that may be in progress.
@@ -1677,12 +1688,12 @@ impl EMMCController {
     /// **Returns:**
     /// - EMMC_BUSY - the transfer was not completed within 1 second period
     /// - EMMC_OK - the transfer completed sucessfully
-    pub fn emmc_wait_for_data(&self) -> SdResult {
+    pub fn emmc_wait_for_data(&self, emmc: &EMMC) -> SdResult {
         let mut time_diff: u64 = 0; // Zero time difference
         let mut start_time: u64 = 0; // Zero start time
 
-        while (self.registers.EMMC_STATUS.matches_all(STATUS::DAT_INHIBIT.val(1))) &&		// Data inhibit signal
-              (self.registers.EMMC_INTERRUPT.get() & INT_ERROR_MASK as u32) == 0 &&	  // Some error occurred
+        while emmc.status().read().dat_inhibit().bit() &&		// Data inhibit signal
+              (emmc.interrupt().read().bits() & INT_ERROR_MASK as u32) == 0 &&	  // Some error occurred
               (time_diff < 500000)
         // Timeout not reached
         {
@@ -1694,28 +1705,27 @@ impl EMMCController {
                 time_diff = tick_difference(start_time, timer_get_tick_count());
             } // Time difference between start time and now
         }
-        if (time_diff >= 500000)
-            || (self.registers.EMMC_INTERRUPT.get() & INT_ERROR_MASK as u32) != 0
-        {
+        if (time_diff >= 500000) || (emmc.interrupt().read().bits() & INT_ERROR_MASK as u32) != 0 {
             info!(
                 "EMMC: Wait for data aborted: {} :{} :{}\n",
-                self.registers.EMMC_STATUS.get(),
-                self.registers.EMMC_INTERRUPT.get(),
-                self.registers.EMMC_RESP0.get()
+                emmc.status().read().bits(),
+                emmc.interrupt().read().bits(),
+                emmc.resp0().read().bits()
             );
-            return SdResult::EMMC_BUSY; // return EMMC_BUSY
+            return SdResult::EMMC_BUSY;
         }
-        return SdResult::EMMC_OK; // return EMMC_OK
+
+        SdResult::EMMC_OK
     }
 
     /// Decode CSD data for logging purposes.
-    pub fn unpack_csd(&self, csd: &mut CSD) {
+    pub fn unpack_csd(&self, emmc: &EMMC, csd: &mut CSD) {
         let mut buffer: [u8; 16] = [0; 16];
 
-        buffer[12..].copy_from_slice(&self.registers.EMMC_RESP0.get().to_le_bytes());
-        buffer[8..12].copy_from_slice(&self.registers.EMMC_RESP1.get().to_le_bytes());
-        buffer[4..8].copy_from_slice(&self.registers.EMMC_RESP2.get().to_le_bytes());
-        buffer[0..4].copy_from_slice(&self.registers.EMMC_RESP3.get().to_le_bytes());
+        buffer[12..].copy_from_slice(&emmc.resp0().read().bits().to_le_bytes());
+        buffer[8..12].copy_from_slice(&emmc.resp1().read().bits().to_le_bytes());
+        buffer[4..8].copy_from_slice(&emmc.resp2().read().bits().to_le_bytes());
+        buffer[0..4].copy_from_slice(&emmc.resp3().read().bits().to_le_bytes());
 
         // Display raw CSD - values of my SANDISK ultra 32GB shown under each
         info!(
@@ -1886,8 +1896,8 @@ impl EMMCController {
     }
 
     ///  Send command and handle response.
-    pub fn emmc_sendcommand_p(&self, cmd: EMMCCommand<'static>, arg: u32) -> SdResult {
-        if self.emmc_wait_for_command() != SdResult::EMMC_OK {
+    pub fn emmc_sendcommand_p(&self, emmc: &EMMC, cmd: EMMCCommand<'static>, arg: u32) -> SdResult {
+        if self.emmc_wait_for_command(emmc) != SdResult::EMMC_OK {
             return SdResult::EMMC_BUSY;
         }
         #[cfg(feature = "log")]
@@ -1903,39 +1913,44 @@ impl EMMCController {
         }
 
         // Clear interrupt flags.  This is done by setting the ones that are currently set
-        self.registers
-            .EMMC_INTERRUPT
-            .set(self.registers.EMMC_INTERRUPT.get()); // Clear interrupts
+        // self.registers
+        //     .EMMC_INTERRUPT
+        //     .set(self.registers.EMMC_INTERRUPT.get()); // Clear interrupts
+
+        emmc.interrupt().reset(); // not really sure if this is the same as the above lol
 
         // Set the argument and the command code, Some commands require a delay before reading the response
-        self.registers.EMMC_ARG1.set(arg); // Set argument to SD card
-        self.registers.EMMC_CMDTM.set(cmd.cmd_code.get()); // Send command to SD card
+        unsafe {
+            emmc.arg1().write(|w| w.bits(arg)); // Set argument to SD card
+            emmc.cmdtm().write(|w| w.bits(cmd.cmd_code.get())); // Send command to SD card
+        }
+
         if cmd.delay != 0 {
             timer_wait_micro(cmd.delay.into());
         }; // Wait for required delay
 
         // Wait until we finish sending the command i.e. the CMD_DONE interrupt bit is set.
-        let res = self.emmc_wait_for_interrupt(INT_CMD_DONE as u32);
+        let res = self.emmc_wait_for_interrupt(emmc, INT_CMD_DONE as u32);
         match res {
             SdResult::EMMC_OK => {}
             _ => return res, // In non zero return result
         };
 
         /* Get response from RESP0 */
-        let resp0 = self.registers.EMMC_RESP0.get(); // Fetch SD card response0 to command
+        let resp0 = emmc.resp0().read().bits(); // Fetch SD card response0 to command
 
         match cmd.cmd_code.read_as_enum(CMDTM::CMD_RSPNS_TYPE) {
-            Some(CMDTM::CMD_RSPNS_TYPE::Value::CMD_NO_RESP) => return SdResult::EMMC_OK,
+            Some(CMDTM::CMD_RSPNS_TYPE::Value::CMD_NO_RESP) => SdResult::EMMC_OK,
             Some(CMDTM::CMD_RSPNS_TYPE::Value::CMD_BUSY48BIT_RESP) => unsafe {
                 EMMC_CARD.status = resp0;
                 // Store the card state.  Note that this is the state the card was in before the
                 // command was accepted, not the new state.
                 if resp0 & R1_ERRORS_MASK == 0 {
                     return SdResult::EMMC_OK;
-                } else {
-                    info!("CMD_BUSY48BIT_RESP case");
-                    return SdResult::EMMC_CARD_STATE(resp0 & R1_ERRORS_MASK);
                 }
+
+                info!("CMD_BUSY48BIT_RESP case");
+                SdResult::EMMC_CARD_STATE(resp0 & R1_ERRORS_MASK)
             },
             // RESP0 contains card status, no other data from the RESP* registers.
             // Return value non-zero if any error flag in the status value.
@@ -1956,12 +1971,10 @@ impl EMMCController {
                         unsafe {
                             if EMMC_CARD.status & R1_ERRORS_MASK == 0 {
                                 return SdResult::EMMC_OK;
-                            } else {
-                                info!("CMD_48BIT_RESP, 0x03 case");
-                                return SdResult::EMMC_CARD_STATE(
-                                    EMMC_CARD.status & R1_ERRORS_MASK,
-                                );
                             }
+
+                            info!("CMD_48BIT_RESP, 0x03 case");
+                            SdResult::EMMC_CARD_STATE(EMMC_CARD.status & R1_ERRORS_MASK)
                         }
                     }
                     // SEND_IF_COND command
@@ -1970,9 +1983,9 @@ impl EMMCController {
                         // the argument.
                         unsafe { EMMC_CARD.status = 0 };
                         if resp0 == arg {
-                            return SdResult::EMMC_OK;
+                            SdResult::EMMC_OK
                         } else {
-                            return SdResult::EMMC_ERROR;
+                            SdResult::EMMC_ERROR
                         }
                         // RESP0 contains OCR register
                         // TODO: What is the correct time to wait for this?
@@ -1983,7 +1996,7 @@ impl EMMCController {
                             EMMC_CARD.status = 0;
                             EMMC_CARD.ocr.set(resp0);
                         }
-                        return SdResult::EMMC_OK;
+                        SdResult::EMMC_OK
                     }
                     _ => {
                         unsafe {
@@ -1992,9 +2005,9 @@ impl EMMCController {
                         // Store the card state.  Note that this is the state the card was in before the
                         // command was accepted, not the new state.
                         if resp0 & R1_ERRORS_MASK == 0 {
-                            return SdResult::EMMC_OK;
+                            SdResult::EMMC_OK
                         } else {
-                            return SdResult::EMMC_CARD_STATE(resp0 & R1_ERRORS_MASK);
+                            SdResult::EMMC_CARD_STATE(resp0 & R1_ERRORS_MASK)
                         }
                     }
                 }
@@ -2006,56 +2019,58 @@ impl EMMCController {
                     EMMC_CARD.status = 0;
                 }
                 if cmd.cmd_code.read(CMDTM::CMD_INDEX) == 0x09 {
-                    self.unpack_csd(unsafe { &mut EMMC_CARD.csd });
+                    self.unpack_csd(emmc, unsafe { &mut EMMC_CARD.csd });
                 } else {
                     unsafe {
                         EMMC_CARD.cid.cid3.set(resp0);
-                        EMMC_CARD.cid.cid2.set(self.registers.EMMC_RESP1.get());
-                        EMMC_CARD.cid.cid1.set(self.registers.EMMC_RESP2.get());
-                        EMMC_CARD.cid.cid0.set(self.registers.EMMC_RESP3.get());
+                        EMMC_CARD.cid.cid2.set(emmc.resp1().read().bits());
+                        EMMC_CARD.cid.cid1.set(emmc.resp2().read().bits());
+                        EMMC_CARD.cid.cid0.set(emmc.resp3().read().bits());
                     }
                 }
-                return SdResult::EMMC_OK;
+                SdResult::EMMC_OK
             }
             None => SdResult::EMMC_ERROR,
         }
     }
 
     /// Send APP command and handle response.    
-    pub fn emmc_send_app_command(&self) -> SdResult {
+    pub fn emmc_send_app_command(&self, emmc: &EMMC) -> SdResult {
         // If no RCA, send the APP_CMD and don't look for a response.
         if unsafe { EMMC_CARD.rca == 0 } {
-            let resp = self.emmc_sendcommand_p(SdCardCommands::APP_CMD.get_cmd(), 0x00000000);
+            let resp = self.emmc_sendcommand_p(emmc, SdCardCommands::APP_CMD.get_cmd(), 0x00000000);
             timer_wait_micro(100); // add a 100 us delay for cmds that automatically send APP_CMDs
                                    // info!(" no-rca APP_CMD result: {:?} ", resp);
                                    // If there is an RCA, include that in APP_CMD and check card accepted it.
         } else {
-            let resp = self.emmc_sendcommand_p(SdCardCommands::APP_CMD_RCA.get_cmd(), unsafe {
-                EMMC_CARD.rca
-            });
+            let resp =
+                self.emmc_sendcommand_p(emmc, SdCardCommands::APP_CMD_RCA.get_cmd(), unsafe {
+                    EMMC_CARD.rca
+                });
             match resp {
                 SdResult::EMMC_OK => {}
-                _ => return self.emmc_debug_response(resp),
+                _ => return self.emmc_debug_response(emmc, resp),
             }
             // Debug - check that status indicates APP_CMD accepted.
             if (unsafe { EMMC_CARD.status & ST_APP_CMD }) == 0 {
                 return SdResult::EMMC_ERROR;
             };
         }
+
         SdResult::EMMC_OK
     }
 
     /// Send a command with no argument. RCA automatically added if required.
     /// APP_CMD sent automatically if required.
-    pub fn emmc_send_command(&self, cmd_type: SdCardCommands) -> SdResult {
+    pub fn emmc_send_command(&self, emmc: &EMMC, cmd_type: SdCardCommands) -> SdResult {
         let mut resp = SdResult::NONE;
 
         // Issue APP_CMD if needed.
         if cmd_type >= SdCardCommands::APP_CMD_START && {
-            resp = self.emmc_send_app_command();
+            resp = self.emmc_send_app_command(emmc);
             resp != SdResult::EMMC_OK
         } {
-            return self.emmc_debug_response(resp);
+            return self.emmc_debug_response(emmc, resp);
         }
 
         // Get the command and set RCA if required.
@@ -2065,7 +2080,7 @@ impl EMMCController {
             unsafe { arg = EMMC_CARD.rca }
         }
 
-        resp = self.emmc_sendcommand_p(cmd, arg);
+        resp = self.emmc_sendcommand_p(emmc, cmd, arg);
         if resp != SdResult::EMMC_OK {
             return resp;
         };
@@ -2079,21 +2094,21 @@ impl EMMCController {
             return SdResult::EMMC_ERROR_APP_CMD;
         }
 
-        return resp;
+        resp
     }
 
     /// Send a command with argument. APP_CMD sent automatically if required.
-    pub fn emmc_send_command_a(&self, cmd_type: SdCardCommands, arg: u32) -> SdResult {
+    pub fn emmc_send_command_a(&self, emmc: &EMMC, cmd_type: SdCardCommands, arg: u32) -> SdResult {
         // Issue APP_CMD if needed.
         let mut resp = SdResult::NONE;
         if cmd_type >= SdCardCommands::APP_CMD_START && {
-            resp = self.emmc_send_app_command();
+            resp = self.emmc_send_app_command(emmc);
             resp != SdResult::EMMC_OK
         } {
-            return self.emmc_debug_response(resp);
+            return self.emmc_debug_response(emmc, resp);
         }
         // Get the command and pass the argument through.
-        resp = self.emmc_sendcommand_p(cmd_type.get_cmd(), arg);
+        resp = self.emmc_sendcommand_p(emmc, cmd_type.get_cmd(), arg);
         if resp != SdResult::EMMC_OK {
             return resp;
         }
@@ -2107,35 +2122,33 @@ impl EMMCController {
             return SdResult::EMMC_ERROR_APP_CMD;
         }
 
-        return resp;
+        resp
     }
 
     /// Read card's SCR. APP_CMD sent automatically if required.
-    pub fn emmc_read_scr(&self) -> SdResult {
+    pub fn emmc_read_scr(&self, emmc: &EMMC) -> SdResult {
         // SEND_SCR command is like a READ_SINGLE but for a block of 8 bytes.
         // Ensure that any data operation has completed before reading the block.
-        if self.emmc_wait_for_data() != SdResult::EMMC_OK {
+        if self.emmc_wait_for_data(emmc) != SdResult::EMMC_OK {
             return SdResult::EMMC_TIMEOUT;
         }
 
         // Set BLKSIZECNT to 1 block of 8 bytes, send SEND_SCR command
-        self.registers
-            .EMMC_BLKSIZECNT
-            .modify(BLKSIZECNT::BLKCNT.val(1));
-        self.registers
-            .EMMC_BLKSIZECNT
-            .modify(BLKSIZECNT::BLKSIZE.val(8));
+        unsafe {
+            emmc.blksizecnt().write(|w| w.blkcnt().bits(1));
+            emmc.blksizecnt().write(|w| w.blksize().bits(8));
+        }
 
-        let resp = self.emmc_send_command(SdCardCommands::SEND_SCR);
+        let resp = self.emmc_send_command(emmc, SdCardCommands::SEND_SCR);
         if resp != SdResult::EMMC_OK {
-            return self.emmc_debug_response(resp);
+            return self.emmc_debug_response(emmc, resp);
         }
 
         // Wait for READ_RDY interrupt.
-        let resp = self.emmc_wait_for_interrupt(INT_READ_RDY as u32);
+        let resp = self.emmc_wait_for_interrupt(emmc, INT_READ_RDY as u32);
         if resp != SdResult::EMMC_OK {
             info!("EMMC: Timeout waiting for ready to read\n");
-            return self.emmc_debug_response(resp);
+            return self.emmc_debug_response(emmc, resp);
         }
 
         // Allow maximum of 100ms for the read operation.
@@ -2184,7 +2197,7 @@ impl EMMCController {
         }
 
         unsafe { EMMC_CARD.scr.set(scr_lo as u64 | ((scr_hi as u64) << 32)) };
-        return SdResult::EMMC_OK;
+        SdResult::EMMC_OK
     }
 
     /// Get clock divider bit-pattern, given its integer value.
@@ -2197,7 +2210,7 @@ impl EMMCController {
         assert!(div < (1 << 10));
         v = (div << clkfreq8shift) & clkfreq8mask;
         v |= ((div >> 8) << clkfreqms2shift) & clkfreqms2mask;
-        return v;
+        v
     }
 
     /// Set the SD clock to the given frequency (derived from the base clock)
@@ -2259,7 +2272,7 @@ impl EMMCController {
             (BASE_CLOCK as u32 / div) >> 1
         );
 
-        return SdResult::EMMC_OK; // Clock frequency set worked
+        SdResult::EMMC_OK // Clock frequency set worked
     }
 
     /// Reset the SD Card
@@ -2338,14 +2351,14 @@ impl EMMCController {
             EMMC_CARD.emmc_card_type = SdCardType::EMMC_TYPE_UNKNOWN;
         } // Set card type unknown
 
-        resp = self.emmc_send_command(SdCardCommands::GO_IDLE_STATE); // Send GO_IDLE_STATE to card
+        resp = self.emmc_send_command(emmc, SdCardCommands::GO_IDLE_STATE); // Send GO_IDLE_STATE to card
 
-        return resp; // Return response
+        resp // Return response
     }
 
     /// Common routine for APP_SEND_OP_COND.
     /// This is used for both SC and HC cards based on the parameter.
-    pub fn emmc_app_send_op_cond(&self, arg: u32) -> SdResult {
+    pub fn emmc_app_send_op_cond(&self, emmc: &EMMC, arg: u32) -> SdResult {
         // Send APP_SEND_OP_COND with the given argument (for SC or HC cards).
         // Note: The host shall set ACMD41 timeout more than 1 second to avoid re-issuing ACMD41.
         // This command takes a while and is time-sensitive.
@@ -2356,7 +2369,7 @@ impl EMMCController {
 
         // In other words- issuing `APP_SEND_OP_COND`, will trigger an APP_CMD prior to sending out APP_SEND_OP_COND.
         // We must ensure a 100us delay between the 2 commands.
-        let mut resp = self.emmc_send_command_a(SdCardCommands::APP_SEND_OP_COND, arg);
+        let mut resp = self.emmc_send_command_a(emmc, SdCardCommands::APP_SEND_OP_COND, arg);
         if resp != SdResult::EMMC_OK && resp != SdResult::EMMC_TIMEOUT {
             #[cfg(feature = "log")]
             info!("EMMC: ACMD41 returned non-timeout error {:?}\n", resp);
@@ -2366,7 +2379,7 @@ impl EMMCController {
         let mut count = 6u8;
         while unsafe { EMMC_CARD.ocr.read(OCR::card_power_up_busy) == 0 } && count != 0 {
             timer_wait_micro(400000);
-            resp = self.emmc_send_command_a(SdCardCommands::APP_SEND_OP_COND, arg);
+            resp = self.emmc_send_command_a(emmc, SdCardCommands::APP_SEND_OP_COND, arg);
             if (resp != SdResult::EMMC_OK) && resp != SdResult::EMMC_TIMEOUT {
                 #[cfg(feature = "log")]
                 info!("EMMC: ACMD41 returned non-timeout error {:?}\n", resp);
@@ -2389,12 +2402,13 @@ impl EMMCController {
             return SdResult::EMMC_ERROR_VOLTAGE;
         }
 
-        return SdResult::EMMC_OK;
+        SdResult::EMMC_OK
     }
 
     /// Transfer the count blocks starting at given block to/from SD Card.
     pub fn emmc_transfer_blocks(
         &self,
+        emmc: &EMMC,
         start_block: u32,
         num_blocks: u32,
         mut buffer: &mut [u8],
@@ -2403,7 +2417,7 @@ impl EMMCController {
         if unsafe { EMMC_CARD.emmc_card_type == SdCardType::EMMC_TYPE_UNKNOWN } {
             return SdResult::EMMC_NO_RESP;
         } // If card not known return error
-        if self.emmc_wait_for_data() != SdResult::EMMC_OK {
+        if self.emmc_wait_for_data(emmc) != SdResult::EMMC_OK {
             return SdResult::EMMC_TIMEOUT;
         } // Ensure any data operation has completed before doing the transfer.
 
@@ -2441,11 +2455,11 @@ impl EMMCController {
                 }
             }
             && {
-                resp = self.emmc_send_command_a(SdCardCommands::SET_BLOCKCNT, num_blocks);
+                resp = self.emmc_send_command_a(emmc, SdCardCommands::SET_BLOCKCNT, num_blocks);
                 resp != SdResult::EMMC_OK
             })
         {
-            return self.emmc_debug_response(resp);
+            return self.emmc_debug_response(emmc, resp);
         }
 
         // Address is different depending on the card type.
@@ -2468,9 +2482,9 @@ impl EMMCController {
         self.registers
             .EMMC_BLKSIZECNT
             .modify(BLKSIZECNT::BLKSIZE.val(512));
-        resp = self.emmc_send_command_a(transfer_cmd, block_address);
+        resp = self.emmc_send_command_a(emmc, transfer_cmd, block_address);
         if resp != SdResult::EMMC_OK {
-            return self.emmc_debug_response(resp);
+            return self.emmc_debug_response(emmc, resp);
         }
 
         #[cfg(feature = "log")]
@@ -2484,12 +2498,12 @@ impl EMMCController {
         let mut buffer_addr = buffer.as_ptr() as usize;
         while (blocks_done < num_blocks) {
             // Wait for ready interrupt for the next block.
-            resp = self.emmc_wait_for_interrupt(ready_int as u32);
+            resp = self.emmc_wait_for_interrupt(emmc, ready_int as u32);
             if resp != SdResult::EMMC_OK {
                 #[cfg(feature = "log")]
                 info!("EMMC: Timeout waiting for ready to read\n");
 
-                return self.emmc_debug_response(resp);
+                return self.emmc_debug_response(emmc, resp);
             }
 
             // Handle non-word-aligned buffers byte-by-byte.
@@ -2529,9 +2543,9 @@ impl EMMCController {
             if blocks_done + 1 == num_blocks {
                 // we're done transferring all blocks
                 break; // break here or we'll run into an `out of bounds` error.
-            } else {
-                buffer = &mut buffer[512 as usize..];
             }
+
+            buffer = &mut buffer[512 as usize..];
             blocks_done += 1;
         }
 
@@ -2552,7 +2566,7 @@ impl EMMCController {
             );
 
             if (!write && num_blocks > 1 && {
-                resp = self.emmc_send_command(SdCardCommands::STOP_TRANS);
+                resp = self.emmc_send_command(emmc, SdCardCommands::STOP_TRANS);
                 resp != SdResult::EMMC_OK
             }) {
                 info!("EMMC: Error response from stop transmission: {:?}\n", resp);
@@ -2562,13 +2576,13 @@ impl EMMCController {
 
         // For a write operation, ensure DATA_DONE interrupt before we stop transmission.
         if write && {
-            resp = self.emmc_wait_for_interrupt(INT_DATA_DONE as u32);
+            resp = self.emmc_wait_for_interrupt(emmc, INT_DATA_DONE as u32);
             resp != SdResult::EMMC_OK
         } {
             #[cfg(feature = "log")]
             info!("EMMC: Timeout waiting for data done\n");
 
-            return self.emmc_debug_response(resp);
+            return self.emmc_debug_response(emmc, resp);
         }
 
         // For a multi-block operation, if SET_BLOCKCNT is not supported, we need to indicate
@@ -2587,24 +2601,24 @@ impl EMMCController {
                 }
             }
             && {
-                resp = self.emmc_send_command(SdCardCommands::STOP_TRANS);
+                resp = self.emmc_send_command(emmc, SdCardCommands::STOP_TRANS);
                 resp != SdResult::EMMC_OK
             })
         {
-            return self.emmc_debug_response(resp);
+            return self.emmc_debug_response(emmc, resp);
         }
 
-        return SdResult::EMMC_OK;
+        SdResult::EMMC_OK
     }
 
     /// Clears the count blocks starting at given block from SD Card.
-    pub fn emmc_clear_blocks(&self, start_block: u32, num_blocks: u32) -> SdResult {
+    pub fn emmc_clear_blocks(&self, emmc: &EMMC, start_block: u32, num_blocks: u32) -> SdResult {
         if unsafe { EMMC_CARD.emmc_card_type == SdCardType::EMMC_TYPE_UNKNOWN } {
             return SdResult::EMMC_NO_RESP;
         }
 
         // Ensure that any data operation has completed before doing the transfer.
-        if self.emmc_wait_for_data() != SdResult::EMMC_OK {
+        if self.emmc_wait_for_data(emmc) != SdResult::EMMC_OK {
             return SdResult::EMMC_TIMEOUT;
         }
 
@@ -2626,17 +2640,17 @@ impl EMMCController {
             "EMMC: erasing blocks from {:?} to {:?}\n",
             start_address, end_address
         );
-        let mut resp = self.emmc_send_command_a(SdCardCommands::ERASE_WR_ST, start_address);
+        let mut resp = self.emmc_send_command_a(emmc, SdCardCommands::ERASE_WR_ST, start_address);
         if (resp != SdResult::EMMC_OK) {
-            return self.emmc_debug_response(resp);
+            return self.emmc_debug_response(emmc, resp);
         }
-        resp = self.emmc_send_command_a(SdCardCommands::ERASE_WR_END, end_address);
+        resp = self.emmc_send_command_a(emmc, SdCardCommands::ERASE_WR_END, end_address);
         if (resp != SdResult::EMMC_OK) {
-            return self.emmc_debug_response(resp);
+            return self.emmc_debug_response(emmc, resp);
         }
-        resp = self.emmc_send_command(SdCardCommands::ERASE);
+        resp = self.emmc_send_command(emmc, SdCardCommands::ERASE);
         if (resp != SdResult::EMMC_OK) {
-            return self.emmc_debug_response(resp);
+            return self.emmc_debug_response(emmc, resp);
         }
 
         // Wait for data inhibit status to drop.
@@ -2667,7 +2681,7 @@ impl EMMCController {
             self.registers.EMMC_INTERRUPT.get()
         );
 
-        return SdResult::EMMC_OK;
+        SdResult::EMMC_OK
     }
 
     /// Attempts to initialize current SD Card and returns success/error status.
@@ -2686,14 +2700,14 @@ impl EMMCController {
 
         // Send SEND_IF_COND,0x000001AA (CMD8) voltage range 0x1 check pattern 0xAA
         // If voltage range and check pattern don't match, look for older card.
-        resp = self.emmc_send_command_a(SdCardCommands::SEND_IF_COND, 0x000001AA);
+        resp = self.emmc_send_command_a(emmc, SdCardCommands::SEND_IF_COND, 0x000001AA);
         let _ = match resp {
             SdResult::EMMC_OK => {
                 // Card responded with voltage and check pattern.
                 // Resolve voltage and check for high capacity card.
-                resp = self.emmc_app_send_op_cond(ACMD41_ARG_HC as u32);
+                resp = self.emmc_app_send_op_cond(emmc, ACMD41_ARG_HC as u32);
                 if (resp != SdResult::EMMC_OK) {
-                    return self.emmc_debug_response(resp);
+                    return self.emmc_debug_response(emmc, resp);
                 }
 
                 // Check for high or standard capacity.
@@ -2718,9 +2732,9 @@ impl EMMCController {
 
                 // wait(50);
                 // Resolve voltage.
-                resp = self.emmc_app_send_op_cond(ACMD41_ARG_SC as u32);
+                resp = self.emmc_app_send_op_cond(emmc, ACMD41_ARG_SC as u32);
                 if (resp != SdResult::EMMC_OK) {
-                    return self.emmc_debug_response(resp);
+                    return self.emmc_debug_response(emmc, resp);
                 }
 
                 unsafe {
@@ -2730,44 +2744,44 @@ impl EMMCController {
         };
 
         // Send ALL_SEND_CID (CMD2)
-        resp = self.emmc_send_command(SdCardCommands::ALL_SEND_CID);
+        resp = self.emmc_send_command(emmc, SdCardCommands::ALL_SEND_CID);
         if (resp != SdResult::EMMC_OK) {
-            return self.emmc_debug_response(resp);
+            return self.emmc_debug_response(emmc, resp);
         }
 
         // Send SEND_REL_ADDR (CMD3)
         // TODO: In theory, loop back to SEND_IF_COND to find additional cards.
-        resp = self.emmc_send_command(SdCardCommands::SEND_REL_ADDR);
+        resp = self.emmc_send_command(emmc, SdCardCommands::SEND_REL_ADDR);
         if (resp != SdResult::EMMC_OK) {
-            return self.emmc_debug_response(resp);
+            return self.emmc_debug_response(emmc, resp);
         }
 
         // Send SEND_CSD (CMD9) and parse the result.
-        resp = self.emmc_send_command(SdCardCommands::SEND_CSD);
+        resp = self.emmc_send_command(emmc, SdCardCommands::SEND_CSD);
         if (resp != SdResult::EMMC_OK) {
-            return self.emmc_debug_response(resp);
+            return self.emmc_debug_response(emmc, resp);
         }
 
         // At this point, set the clock to full speed
         resp = self.emmc_set_clock2(emmc, FREQ_NORMAL as u32);
         if (resp != SdResult::EMMC_OK) {
-            return self.emmc_debug_response(resp);
+            return self.emmc_debug_response(emmc, resp);
         }
 
         // Send CARD_SELECT  (CMD7)
         // TODO: Check card_is_locked status in the R1 response from CMD7 [bit 25], if so, use CMD42 to unlock
         // CMD42 structure [4.3.7] same as a single block write; data block includes
         // PWD setting mode, PWD len, PWD data.
-        resp = self.emmc_send_command(SdCardCommands::CARD_SELECT);
+        resp = self.emmc_send_command(emmc, SdCardCommands::CARD_SELECT);
         if (resp != SdResult::EMMC_OK) {
-            return self.emmc_debug_response(resp);
+            return self.emmc_debug_response(emmc, resp);
         }
 
         // Get the SCR as well.
         // Need to do this before sending ACMD6 so that allowed bus widths are known.
-        resp = self.emmc_read_scr();
+        resp = self.emmc_read_scr(emmc);
         if (resp != SdResult::EMMC_OK) {
-            return self.emmc_debug_response(resp);
+            return self.emmc_debug_response(emmc, resp);
         }
 
         #[cfg(feature = "log")]
@@ -2788,10 +2802,11 @@ impl EMMCController {
         if let Some(SCR::BUS_WIDTH::Value::BUS_WIDTH_1_4) =
             unsafe { EMMC_CARD.scr.read_as_enum(SCR::BUS_WIDTH) }
         {
-            resp = self
-                .emmc_send_command_a(SdCardCommands::SET_BUS_WIDTH, unsafe { EMMC_CARD.rca | 2 });
+            resp = self.emmc_send_command_a(emmc, SdCardCommands::SET_BUS_WIDTH, unsafe {
+                EMMC_CARD.rca | 2
+            });
             if (resp != SdResult::EMMC_OK) {
-                return self.emmc_debug_response(resp);
+                return self.emmc_debug_response(emmc, resp);
             }
             self.registers
                 .EMMC_CONTROL0
@@ -2800,9 +2815,9 @@ impl EMMCController {
         };
 
         // Send SET_BLOCKLEN (CMD16)
-        resp = self.emmc_send_command_a(SdCardCommands::SET_BLOCKLEN, 512);
+        resp = self.emmc_send_command_a(emmc, SdCardCommands::SET_BLOCKLEN, 512);
         if (resp != SdResult::EMMC_OK) {
-            return self.emmc_debug_response(resp);
+            return self.emmc_debug_response(emmc, resp);
         }
 
         // Print out the CID having got this far.
@@ -2832,7 +2847,7 @@ impl EMMCController {
             );
         }
 
-        return SdResult::EMMC_OK;
+        SdResult::EMMC_OK
     }
 }
 
@@ -2912,6 +2927,7 @@ pub trait BlockDevice {
     /// Read one or more blocks, starting at the given block index.
     fn read(
         &self,
+        emmc: &EMMC,
         blocks: &mut [Block],
         start_block_idx: BlockIdx,
         reason: &str,

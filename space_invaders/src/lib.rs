@@ -1,5 +1,4 @@
 #![feature(let_chains)]
-#![feature(return_position_impl_trait_in_trait)]
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(feature = "no_std", feature(format_args_nl))]
 #![warn(clippy::pedantic)]
@@ -9,15 +8,13 @@ extern crate core;
 mod framebuffer;
 mod time;
 
-use log::info;
-
 use crate::framebuffer::color;
 pub use crate::framebuffer::fb_trait::FrameBufferInterface;
 use crate::framebuffer::fb_trait::LETTER_WIDTH;
 pub use crate::framebuffer::{Color, Coordinates};
 pub use crate::time::TimeManagerInterface;
 // use crate::{Color, Coordinates, FrameBufferInterface};
-use core::{cmp, mem};
+use core::mem;
 
 pub const SCREEN_WIDTH: u32 = 480;
 pub const SCREEN_WIDTH_NO_MARGIN: u32 = SCREEN_WIDTH - SCREEN_MARGIN;
@@ -69,8 +66,8 @@ fn draw(fb: &mut impl FrameBufferInterface) {
     let mut message_buf = [0u8; 12 * mem::size_of::<char>()];
     let text = format_to_buffer(&mut message_buf).expect("TODO: panic message");
 
-    let mut x = ((SCREEN_WIDTH / 2) - 60);
-    let y = ((SCREEN_HEIGHT / 2) - 10);
+    let mut x = (SCREEN_WIDTH / 2) - 60;
+    let y = (SCREEN_HEIGHT / 2) - 10;
     for c in text.chars() {
         // right distance after each character
         x += LETTER_WIDTH as u32;
