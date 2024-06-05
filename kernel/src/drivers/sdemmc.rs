@@ -1479,15 +1479,13 @@ fn timer_wait_micro(delay: u64) {
 
 /// Gets current system counter value
 fn timer_get_tick_count() -> u64 {
-    // now(Duration::from_nanos)
-    todo!()
+    now().as_nanos() as u64
 }
 
 /// Given two TICKCOUNT values, calculates microseconds between them.
 fn tick_difference(start_time: u64, tick_count: u64) -> u64 {
     let tick_diff = tick_count - start_time;
-    // (tick_diff * now(Duration::from_nanos) as u64) / 1000 // 1 ns == 1000 us
-    todo!()
+    (tick_diff * now().as_nanos() as u64) / 1000 // 1 ns == 1000 us
 }
 
 /// Representation of the SDHOST controller.

@@ -3,9 +3,11 @@ use core::time::Duration;
 use tock_registers::interfaces::Readable;
 use tock_registers::register_bitfields;
 use tock_registers::registers::ReadOnly;
+
+static mut REGISTERS: *mut ArmTimeRegisters = TIMER_REG_BASE as *mut ArmTimeRegisters;
+
 register_bitfields! {
     u32,
-
 }
 
 #[repr(C)]
@@ -21,17 +23,16 @@ struct ArmTimeRegisters {
     _compare: [u32; 4],
 }
 
-pub fn now(reg: &mut ArmTimeRegisters) -> Duration {
-    let lower = reg.counter_lower.get() as u64;
-    let upper = reg.counter_higher.get() as u64;
+pub fn now() -> Duration {
+    let registers = unsafe { &mut *REGISTERS };
+    let lower = unsafe { registers.counter_lower.get() as u64 };
+    let upper = unsafe { registers.counter_higher.get() as u64 };
     let microseconds = (upper << 32) | lower;
     Duration::from_micros(microseconds)
 }
 
 pub fn sleep(duration: Duration) {
-    let ptr = TIMER_REG_BASE as *mut ArmTimeRegisters;
-    let registers = unsafe { &mut *ptr };
-    let target = now(registers) + duration;
+    let target = now() + duration;
 
-    while now(registers) <= target {}
+    while now() <= target {}
 }
