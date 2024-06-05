@@ -25,8 +25,8 @@ struct ArmTimeRegisters {
 
 pub fn now() -> Duration {
     let registers = unsafe { &mut *REGISTERS };
-    let lower = unsafe { registers.counter_lower.get() as u64 };
-    let upper = unsafe { registers.counter_higher.get() as u64 };
+    let lower = registers.counter_lower.get() as u64;
+    let upper = registers.counter_higher.get() as u64;
     let microseconds = (upper << 32) | lower;
     Duration::from_micros(microseconds)
 }
