@@ -11,7 +11,8 @@ cortex-a = "~8.1"
 space_invaders = { path = "../space_invaders", features= ["no_std"] }
 bitflags = "2.3"
 log = "0.4.19"
-bcm2837-lpa = { version = "0.4.0", features = ["critical-section"]}
+bcm2837-hal = { path = "../../bcm2837-hal" }
+# bcm2837-lpa = { version = "0.4.0", features = ["critical-section"]}
 critical-section = "1.1.2"
 
 # [profile.release]

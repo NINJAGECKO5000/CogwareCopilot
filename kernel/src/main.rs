@@ -7,11 +7,12 @@
 #![feature(asm_const)]
 
 use crate::logger::IrisLogger;
-use bcm2837_lpa::Peripherals;
+use bcm2837_hal::pac;
 use core::panic::PanicInfo;
 use cortex_a::asm;
 use cortex_a::registers::SCTLR_EL1;
 use drivers::HyperPixel;
+use pac::Peripherals;
 use space_invaders::run_test;
 
 mod boot;
@@ -63,10 +64,14 @@ fn main() {
     info!("main");
     let fb = mailbox::lfb_init(0).expect("Failed to init framebuffer");
     let peripherals = unsafe { Peripherals::steal() };
+    let gpio = peripherals.GPIO;
 
     info!("Starting Driver!");
-    let hp = HyperPixel::new(&peripherals);
-    hp.hyperinit();
+    let hp = HyperPixel::new(gpio);
+    hp.init();
+    info!("we made it past initialization yay fdsg");
+    // info!("{:#032b}", peripherals.GPIO.gpfsel0().read().bits());
+    // info!("{:#032b}", peripherals.GPIO.gpfsel1().read().bits());
     info!("hyperpixel is inited in theory");
     // where to add the rest of the program
     run_test(fb);

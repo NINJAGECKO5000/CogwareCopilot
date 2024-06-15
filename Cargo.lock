@@ -27,6 +27,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c4b4d0bd25bd0b74681c0ad21497610ce1b7c91b1022cd21c80c6fbdd9476b0"
 
 [[package]]
+name = "bcm2837-hal"
+version = "0.1.0"
+dependencies = [
+ "bcm2837-lpa",
+ "critical-section",
+ "embedded-hal",
+ "log",
+ "paste",
+]
+
+[[package]]
 name = "bcm2837-lpa"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -72,7 +83,7 @@ name = "cogware-copilot"
 version = "0.1.0"
 dependencies = [
  "aarch64-cpu",
- "bcm2837-lpa",
+ "bcm2837-hal",
  "bitflags 2.5.0",
  "cortex-a",
  "critical-section",
@@ -116,6 +127,12 @@ name = "downcast-rs"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "75b325c5dbd37f80359721ad39aca5a29fb04c89279657cffdda8736d0c0b9d2"
+
+[[package]]
+name = "embedded-hal"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "361a90feb7004eca4019fb28352a9465666b24f840f5c3cddf0ff13920590b89"
 
 [[package]]
 name = "env_logger"
@@ -411,6 +428,12 @@ dependencies = [
  "sdl2",
  "sdl2-sys",
 ]
+
+[[package]]
+name = "paste"
+version = "1.0.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
 
 [[package]]
 name = "pin-project-lite"

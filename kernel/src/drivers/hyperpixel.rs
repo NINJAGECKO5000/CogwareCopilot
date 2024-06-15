@@ -1,12 +1,14 @@
+use bcm2837_hal::gpio::{Gpio, GpioExTrash, Mode};
+
 use crate::time::sleep;
 
-use bcm2837_lpa::{
+use crate::pac::{
     generic::Reg,
     gpio::{
         gpio_pup_pdn_cntrl_reg0::GPIO_PUP_PDN_CNTRL_REG0_SPEC,
         gpio_pup_pdn_cntrl_reg1::GPIO_PUP_PDN_CNTRL_REG1_SPEC, GPFSEL0, GPFSEL1, GPFSEL2,
     },
-    Peripherals, GPIO, SPI0,
+    GPIO,
 };
 use core::time::Duration;
 
@@ -17,21 +19,92 @@ pub enum Error {
     FuckYou,
 }
 
-pub struct HyperPixel<'a> {
-    gpio: &'a GPIO,
-    spi0: &'a SPI0,
+pub struct HyperPixel {
+    gpio: GPIO,
 }
 
-impl<'a> HyperPixel<'a> {
-    pub fn new(peripherals: &'a Peripherals) -> Self {
-        let gpio = &peripherals.GPIO;
-        let spi0 = &peripherals.SPI0;
-        HyperPixel { gpio, spi0 }
+impl HyperPixel {
+    pub fn new(gpio: GPIO) -> Self {
+        // let gpio = &p.GPIO;
+        HyperPixel { gpio }
     }
 
-    pub fn hyperinit(mut self) {
+    pub fn init(mut self) -> GPIO {
+        let gpio = self.gpio.split_fuck();
+        self.hal_gpio_init(&gpio);
+        unsafe {
+            self.gpio.gpset0().write_with_zero(|w| {
+                w.set18().set_bit();
+                w.set19().set_bit()
+            });
+        }
+        self.gpio_pupdn0().modify(|_, w| {
+            w.gpio_pup_pdn_cntrl0().none();
+            w.gpio_pup_pdn_cntrl1().none();
+            w.gpio_pup_pdn_cntrl2().none();
+            w.gpio_pup_pdn_cntrl3().none();
+            w.gpio_pup_pdn_cntrl4().none();
+            w.gpio_pup_pdn_cntrl5().none();
+            w.gpio_pup_pdn_cntrl6().none();
+            w.gpio_pup_pdn_cntrl7().none();
+            w.gpio_pup_pdn_cntrl8().none();
+            w.gpio_pup_pdn_cntrl9().none();
+            w.gpio_pup_pdn_cntrl12().none();
+            w.gpio_pup_pdn_cntrl13().none();
+            w.gpio_pup_pdn_cntrl14().none();
+            w.gpio_pup_pdn_cntrl15().none()
+        });
+
+        self.gpio_pupdn1().modify(|_, w| {
+            w.gpio_pup_pdn_cntrl16().none();
+            w.gpio_pup_pdn_cntrl17().none();
+            w.gpio_pup_pdn_cntrl20().none();
+            w.gpio_pup_pdn_cntrl21().none();
+            w.gpio_pup_pdn_cntrl22().none();
+            w.gpio_pup_pdn_cntrl23().none();
+            w.gpio_pup_pdn_cntrl24().none();
+            w.gpio_pup_pdn_cntrl25().none()
+        });
+        self.init_display();
+        self.gpio
+    }
+
+    pub fn hal_gpio_init(&self, gpio: &Gpio) {
+        gpio.pin10.fsel(Mode::Output);
+        gpio.pin11.fsel(Mode::Output);
+        gpio.pin18.fsel(Mode::Output);
+        gpio.pin19.fsel(Mode::Output);
+
+        gpio.pin0.fsel(Mode::AF2);
+        gpio.pin1.fsel(Mode::AF2);
+        gpio.pin2.fsel(Mode::AF2);
+        gpio.pin3.fsel(Mode::AF2);
+        gpio.pin4.fsel(Mode::AF2);
+        gpio.pin5.fsel(Mode::AF2);
+        gpio.pin6.fsel(Mode::AF2);
+        gpio.pin7.fsel(Mode::AF2);
+        gpio.pin8.fsel(Mode::AF2);
+        gpio.pin9.fsel(Mode::AF2);
+
+        gpio.pin12.fsel(Mode::AF2);
+        gpio.pin13.fsel(Mode::AF2);
+        gpio.pin14.fsel(Mode::AF2);
+        gpio.pin15.fsel(Mode::AF2);
+        gpio.pin16.fsel(Mode::AF2);
+        gpio.pin17.fsel(Mode::AF2);
+
+        gpio.pin20.fsel(Mode::AF2);
+        gpio.pin21.fsel(Mode::AF2);
+        gpio.pin22.fsel(Mode::AF2);
+        gpio.pin23.fsel(Mode::AF2);
+        gpio.pin24.fsel(Mode::AF2);
+        gpio.pin25.fsel(Mode::AF2);
+    }
+
+    pub fn hyperinit(mut self) -> GPIO {
         self.init_gpio();
         self.init_display();
+        self.gpio
     }
 
     #[inline]
@@ -57,11 +130,6 @@ impl<'a> HyperPixel<'a> {
     #[inline]
     fn gpio_pupdn1(&self) -> &Reg<GPIO_PUP_PDN_CNTRL_REG1_SPEC> {
         self.gpio.gpio_pup_pdn_cntrl_reg1()
-    }
-
-    #[inline]
-    fn spi0(&self) -> &SPI0 {
-        &self.spi0
     }
 
     #[inline]
