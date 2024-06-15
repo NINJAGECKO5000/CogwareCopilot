@@ -1,4 +1,4 @@
-use bcm2837_hal::gpio::{Gpio, GpioExTrash, Mode};
+use bcm2837_hal::gpio::{Function, Gpio, GpioExTrash, PullUpDownMode};
 
 use crate::time::sleep;
 
@@ -32,73 +32,68 @@ impl HyperPixel {
     pub fn init(mut self) -> GPIO {
         let gpio = self.gpio.split_fuck();
         self.hal_gpio_init(&gpio);
-        unsafe {
-            self.gpio.gpset0().write_with_zero(|w| {
-                w.set18().set_bit();
-                w.set19().set_bit()
-            });
-        }
-        self.gpio_pupdn0().modify(|_, w| {
-            w.gpio_pup_pdn_cntrl0().none();
-            w.gpio_pup_pdn_cntrl1().none();
-            w.gpio_pup_pdn_cntrl2().none();
-            w.gpio_pup_pdn_cntrl3().none();
-            w.gpio_pup_pdn_cntrl4().none();
-            w.gpio_pup_pdn_cntrl5().none();
-            w.gpio_pup_pdn_cntrl6().none();
-            w.gpio_pup_pdn_cntrl7().none();
-            w.gpio_pup_pdn_cntrl8().none();
-            w.gpio_pup_pdn_cntrl9().none();
-            w.gpio_pup_pdn_cntrl12().none();
-            w.gpio_pup_pdn_cntrl13().none();
-            w.gpio_pup_pdn_cntrl14().none();
-            w.gpio_pup_pdn_cntrl15().none()
-        });
-
-        self.gpio_pupdn1().modify(|_, w| {
-            w.gpio_pup_pdn_cntrl16().none();
-            w.gpio_pup_pdn_cntrl17().none();
-            w.gpio_pup_pdn_cntrl20().none();
-            w.gpio_pup_pdn_cntrl21().none();
-            w.gpio_pup_pdn_cntrl22().none();
-            w.gpio_pup_pdn_cntrl23().none();
-            w.gpio_pup_pdn_cntrl24().none();
-            w.gpio_pup_pdn_cntrl25().none()
-        });
         self.init_display();
+
         self.gpio
     }
 
     pub fn hal_gpio_init(&self, gpio: &Gpio) {
-        gpio.pin10.fsel(Mode::Output);
-        gpio.pin11.fsel(Mode::Output);
-        gpio.pin18.fsel(Mode::Output);
-        gpio.pin19.fsel(Mode::Output);
+        gpio.pin10.set_func(Function::Output);
+        gpio.pin11.set_func(Function::Output);
+        gpio.pin18.set_func(Function::Output);
+        gpio.pin19.set_func(Function::Output);
 
-        gpio.pin0.fsel(Mode::AF2);
-        gpio.pin1.fsel(Mode::AF2);
-        gpio.pin2.fsel(Mode::AF2);
-        gpio.pin3.fsel(Mode::AF2);
-        gpio.pin4.fsel(Mode::AF2);
-        gpio.pin5.fsel(Mode::AF2);
-        gpio.pin6.fsel(Mode::AF2);
-        gpio.pin7.fsel(Mode::AF2);
-        gpio.pin8.fsel(Mode::AF2);
-        gpio.pin9.fsel(Mode::AF2);
+        gpio.pin18.set_high();
+        gpio.pin19.set_high();
 
-        gpio.pin12.fsel(Mode::AF2);
-        gpio.pin13.fsel(Mode::AF2);
-        gpio.pin14.fsel(Mode::AF2);
-        gpio.pin15.fsel(Mode::AF2);
-        gpio.pin16.fsel(Mode::AF2);
-        gpio.pin17.fsel(Mode::AF2);
+        gpio.pin0.set_func(Function::AF2);
+        gpio.pin1.set_func(Function::AF2);
+        gpio.pin2.set_func(Function::AF2);
+        gpio.pin3.set_func(Function::AF2);
+        gpio.pin4.set_func(Function::AF2);
+        gpio.pin5.set_func(Function::AF2);
+        gpio.pin6.set_func(Function::AF2);
+        gpio.pin7.set_func(Function::AF2);
+        gpio.pin8.set_func(Function::AF2);
+        gpio.pin9.set_func(Function::AF2);
 
-        gpio.pin20.fsel(Mode::AF2);
-        gpio.pin21.fsel(Mode::AF2);
-        gpio.pin22.fsel(Mode::AF2);
-        gpio.pin23.fsel(Mode::AF2);
-        gpio.pin24.fsel(Mode::AF2);
-        gpio.pin25.fsel(Mode::AF2);
+        gpio.pin12.set_func(Function::AF2);
+        gpio.pin13.set_func(Function::AF2);
+        gpio.pin14.set_func(Function::AF2);
+        gpio.pin15.set_func(Function::AF2);
+        gpio.pin16.set_func(Function::AF2);
+        gpio.pin17.set_func(Function::AF2);
+
+        gpio.pin20.set_func(Function::AF2);
+        gpio.pin21.set_func(Function::AF2);
+        gpio.pin22.set_func(Function::AF2);
+        gpio.pin23.set_func(Function::AF2);
+        gpio.pin24.set_func(Function::AF2);
+        gpio.pin25.set_func(Function::AF2);
+
+        gpio.pin0.set_pupdn(PullUpDownMode::None);
+        gpio.pin1.set_pupdn(PullUpDownMode::None);
+        gpio.pin2.set_pupdn(PullUpDownMode::None);
+        gpio.pin3.set_pupdn(PullUpDownMode::None);
+        gpio.pin4.set_pupdn(PullUpDownMode::None);
+        gpio.pin5.set_pupdn(PullUpDownMode::None);
+        gpio.pin6.set_pupdn(PullUpDownMode::None);
+        gpio.pin7.set_pupdn(PullUpDownMode::None);
+        gpio.pin8.set_pupdn(PullUpDownMode::None);
+        gpio.pin9.set_pupdn(PullUpDownMode::None);
+        gpio.pin12.set_pupdn(PullUpDownMode::None);
+        gpio.pin13.set_pupdn(PullUpDownMode::None);
+        gpio.pin14.set_pupdn(PullUpDownMode::None);
+        gpio.pin15.set_pupdn(PullUpDownMode::None);
+
+        gpio.pin16.set_pupdn(PullUpDownMode::None);
+        gpio.pin17.set_pupdn(PullUpDownMode::None);
+        gpio.pin20.set_pupdn(PullUpDownMode::None);
+        gpio.pin21.set_pupdn(PullUpDownMode::None);
+        gpio.pin22.set_pupdn(PullUpDownMode::None);
+        gpio.pin23.set_pupdn(PullUpDownMode::None);
+        gpio.pin24.set_pupdn(PullUpDownMode::None);
+        gpio.pin25.set_pupdn(PullUpDownMode::None);
     }
 
     pub fn hyperinit(mut self) -> GPIO {
