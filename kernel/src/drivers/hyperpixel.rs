@@ -2,14 +2,7 @@ use bcm2837_hal::gpio::{Function, Gpio, GpioExTrash, PullUpDownMode};
 
 use crate::time::sleep;
 
-use crate::pac::{
-    generic::Reg,
-    gpio::{
-        gpio_pup_pdn_cntrl_reg0::GPIO_PUP_PDN_CNTRL_REG0_SPEC,
-        gpio_pup_pdn_cntrl_reg1::GPIO_PUP_PDN_CNTRL_REG1_SPEC, GPFSEL0, GPFSEL1, GPFSEL2,
-    },
-    GPIO,
-};
+use crate::pac::GPIO;
 use core::time::Duration;
 
 const TICK_MICROS: u64 = 100;
@@ -96,36 +89,6 @@ impl HyperPixel {
         gpio.pin25.set_pupdn(PullUpDownMode::None);
     }
 
-    pub fn hyperinit(mut self) -> GPIO {
-        self.init_gpio();
-        self.init_display();
-        self.gpio
-    }
-
-    #[inline]
-    fn gpfsel0(&self) -> &GPFSEL0 {
-        self.gpio.gpfsel0()
-    }
-
-    #[inline]
-    fn gpfsel1(&self) -> &GPFSEL1 {
-        self.gpio.gpfsel1()
-    }
-
-    #[inline]
-    fn gpfsel2(&self) -> &GPFSEL2 {
-        self.gpio.gpfsel2()
-    }
-
-    #[inline]
-    fn gpio_pupdn0(&self) -> &Reg<GPIO_PUP_PDN_CNTRL_REG0_SPEC> {
-        self.gpio.gpio_pup_pdn_cntrl_reg0()
-    }
-
-    #[inline]
-    fn gpio_pupdn1(&self) -> &Reg<GPIO_PUP_PDN_CNTRL_REG1_SPEC> {
-        self.gpio.gpio_pup_pdn_cntrl_reg1()
-    }
 
     #[inline]
     fn set_clock_high(&self) {
@@ -212,82 +175,6 @@ impl HyperPixel {
         for by in bytes {
             self.write_command(by | 0x100);
         }
-    }
-
-    #[inline]
-    fn init_gpio(&self) {
-        self.gpfsel1().modify(|_, w| {
-            w.fsel10().output();
-            w.fsel11().output();
-            w.fsel18().output();
-            w.fsel19().output()
-        });
-
-        unsafe {
-            self.gpio.gpset0().write_with_zero(|w| {
-                w.set18().set_bit();
-                w.set19().set_bit()
-            });
-        }
-
-        self.gpfsel0().modify(|_, w| {
-            w.fsel0().reserved2();
-            w.fsel1().reserved2();
-            w.fsel2().reserved2();
-            w.fsel3().reserved2();
-            w.fsel4().reserved2();
-            w.fsel5().reserved2();
-            w.fsel6().reserved2();
-            w.fsel7().reserved2();
-            w.fsel8().reserved2();
-            w.fsel9().reserved2()
-        });
-
-        self.gpfsel1().modify(|_, w| {
-            w.fsel12().reserved2();
-            w.fsel13().reserved2();
-            w.fsel14().reserved2();
-            w.fsel15().reserved2();
-            w.fsel16().reserved2();
-            w.fsel17().reserved2()
-        });
-
-        self.gpfsel2().modify(|_, w| {
-            w.fsel20().reserved2();
-            w.fsel21().reserved2();
-            w.fsel22().reserved2();
-            w.fsel23().reserved2();
-            w.fsel24().reserved2();
-            w.fsel25().reserved2()
-        });
-
-        self.gpio_pupdn0().modify(|_, w| {
-            w.gpio_pup_pdn_cntrl0().none();
-            w.gpio_pup_pdn_cntrl1().none();
-            w.gpio_pup_pdn_cntrl2().none();
-            w.gpio_pup_pdn_cntrl3().none();
-            w.gpio_pup_pdn_cntrl4().none();
-            w.gpio_pup_pdn_cntrl5().none();
-            w.gpio_pup_pdn_cntrl6().none();
-            w.gpio_pup_pdn_cntrl7().none();
-            w.gpio_pup_pdn_cntrl8().none();
-            w.gpio_pup_pdn_cntrl9().none();
-            w.gpio_pup_pdn_cntrl12().none();
-            w.gpio_pup_pdn_cntrl13().none();
-            w.gpio_pup_pdn_cntrl14().none();
-            w.gpio_pup_pdn_cntrl15().none()
-        });
-
-        self.gpio_pupdn1().modify(|_, w| {
-            w.gpio_pup_pdn_cntrl16().none();
-            w.gpio_pup_pdn_cntrl17().none();
-            w.gpio_pup_pdn_cntrl20().none();
-            w.gpio_pup_pdn_cntrl21().none();
-            w.gpio_pup_pdn_cntrl22().none();
-            w.gpio_pup_pdn_cntrl23().none();
-            w.gpio_pup_pdn_cntrl24().none();
-            w.gpio_pup_pdn_cntrl25().none()
-        });
     }
 
     #[inline]
