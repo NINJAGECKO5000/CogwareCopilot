@@ -1,4 +1,7 @@
-use bcm2837_hal::gpio::{Function, Gpio, GpioExTrash, PullUpDownMode};
+use bcm2837_hal::{
+    gpio::{Gpio, GpioExt, PinMode},
+    pac,
+};
 
 use crate::time::sleep;
 use core::time::Duration;
@@ -15,86 +18,44 @@ pub struct HyperPixel {
 }
 
 impl HyperPixel {
-    pub fn new(gpio: Gpio) -> Self {
-        // let gpio = &p.GPIO;
+    pub fn new(gpio: pac::GPIO) -> Self {
+        let gpio = gpio.split();
         HyperPixel { gpio }
     }
-    pub fn init(mut self) -> Gpio {
-        let gpio = self.gpio.split();
-        self.hal_gpio_init(&gpio);
+
+    pub fn init(mut self) {
+        self.hal_gpio_init();
         self.init_display();
-
-        self.gpio
     }
 
-    pub fn hal_gpio_init(&self, gpio: &Gpio) {
-        gpio.pin10.set_func(Function::Output);
-        gpio.pin11.set_func(Function::Output);
-        gpio.pin18.set_func(Function::Output);
-        gpio.pin19.set_func(Function::Output);
+    pub fn hal_gpio_init(&self) {
+        self.gpio.pins[10].set_mode(PinMode::Output);
+        self.gpio.pins[11].set_mode(PinMode::Output);
 
-        gpio.pin18.set_high();
-        gpio.pin19.set_high();
+        self.gpio.pins[18..=19].iter().for_each(|p| {
+            p.set_mode(PinMode::Output);
+            p.set_high();
+        });
 
-        gpio.pin0.set_func(Function::AF2);
-        gpio.pin1.set_func(Function::AF2);
-        gpio.pin2.set_func(Function::AF2);
-        gpio.pin3.set_func(Function::AF2);
-        gpio.pin4.set_func(Function::AF2);
-        gpio.pin5.set_func(Function::AF2);
-        gpio.pin6.set_func(Function::AF2);
-        gpio.pin7.set_func(Function::AF2);
-        gpio.pin8.set_func(Function::AF2);
-        gpio.pin9.set_func(Function::AF2);
-
-        gpio.pin12.set_func(Function::AF2);
-        gpio.pin13.set_func(Function::AF2);
-        gpio.pin14.set_func(Function::AF2);
-        gpio.pin15.set_func(Function::AF2);
-        gpio.pin16.set_func(Function::AF2);
-        gpio.pin17.set_func(Function::AF2);
-
-        gpio.pin20.set_func(Function::AF2);
-        gpio.pin21.set_func(Function::AF2);
-        gpio.pin22.set_func(Function::AF2);
-        gpio.pin23.set_func(Function::AF2);
-        gpio.pin24.set_func(Function::AF2);
-        gpio.pin25.set_func(Function::AF2);
-
-        gpio.pin0.set_pupdn(PullUpDownMode::None);
-        gpio.pin1.set_pupdn(PullUpDownMode::None);
-        gpio.pin2.set_pupdn(PullUpDownMode::None);
-        gpio.pin3.set_pupdn(PullUpDownMode::None);
-        gpio.pin4.set_pupdn(PullUpDownMode::None);
-        gpio.pin5.set_pupdn(PullUpDownMode::None);
-        gpio.pin6.set_pupdn(PullUpDownMode::None);
-        gpio.pin7.set_pupdn(PullUpDownMode::None);
-        gpio.pin8.set_pupdn(PullUpDownMode::None);
-        gpio.pin9.set_pupdn(PullUpDownMode::None);
-        gpio.pin12.set_pupdn(PullUpDownMode::None);
-        gpio.pin13.set_pupdn(PullUpDownMode::None);
-        gpio.pin14.set_pupdn(PullUpDownMode::None);
-        gpio.pin15.set_pupdn(PullUpDownMode::None);
-
-        gpio.pin16.set_pupdn(PullUpDownMode::None);
-        gpio.pin17.set_pupdn(PullUpDownMode::None);
-        gpio.pin20.set_pupdn(PullUpDownMode::None);
-        gpio.pin21.set_pupdn(PullUpDownMode::None);
-        gpio.pin22.set_pupdn(PullUpDownMode::None);
-        gpio.pin23.set_pupdn(PullUpDownMode::None);
-        gpio.pin24.set_pupdn(PullUpDownMode::None);
-        gpio.pin25.set_pupdn(PullUpDownMode::None);
+        self.gpio.pins[0..=9]
+            .iter()
+            .for_each(|p| p.set_mode(PinMode::AF2));
+        self.gpio.pins[12..=17]
+            .iter()
+            .for_each(|p| p.set_mode(PinMode::AF2));
+        self.gpio.pins[20..=25]
+            .iter()
+            .for_each(|p| p.set_mode(PinMode::AF2));
     }
-
 
     #[inline]
     fn set_clock_high(&self) {
-        self.gpio.pin11.set_high();
+        self.gpio.pins[11].set_high();
     }
 
     #[inline]
     fn set_clock_low(&self) {
-        self.gpio.pin11.set_low();
+        self.gpio.pins[11].set_low();
     }
 
     #[inline]
@@ -107,20 +68,20 @@ impl HyperPixel {
 
     #[inline]
     fn set_cs_high(&self) {
-        self.gpio.pin18.set_high();
+        self.gpio.pins[18].set_high();
     }
 
     #[inline]
     fn set_cs_low(&self) {
         //thank god for readable commands
-        self.gpio.pin18.set_low();
+        self.gpio.pins[18].set_low();
     }
 
     #[inline]
     fn set_mosi(&self, level: bool) {
-            match level {
-                true => self.gpio.pin10.set_high(),
-                false => self.gpio.pin10.set_low(),
+        match level {
+            true => self.gpio.pins[10].set_high(),
+            false => self.gpio.pins[10].set_low(),
         }
     }
 
