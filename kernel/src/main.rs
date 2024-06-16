@@ -69,9 +69,7 @@ fn main() {
     info!("Starting Driver!");
     let hp = HyperPixel::new(gpio);
     hp.init();
-    info!("we made it past initialization yay fdsg");
-    // info!("{:#032b}", peripherals.GPIO.gpfsel0().read().bits());
-    // info!("{:#032b}", peripherals.GPIO.gpfsel1().read().bits());
+    //info!("we made it past initialization yay fdsg");
     info!("hyperpixel is inited in theory");
     // where to add the rest of the program
     run_test(fb);

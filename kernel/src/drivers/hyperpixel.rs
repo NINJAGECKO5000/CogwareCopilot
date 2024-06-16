@@ -1,8 +1,6 @@
 use bcm2837_hal::gpio::{Function, Gpio, GpioExTrash, PullUpDownMode};
 
 use crate::time::sleep;
-
-use crate::pac::GPIO;
 use core::time::Duration;
 
 const TICK_MICROS: u64 = 100;
@@ -13,17 +11,16 @@ pub enum Error {
 }
 
 pub struct HyperPixel {
-    gpio: GPIO,
+    gpio: Gpio,
 }
 
 impl HyperPixel {
-    pub fn new(gpio: GPIO) -> Self {
+    pub fn new(gpio: Gpio) -> Self {
         // let gpio = &p.GPIO;
         HyperPixel { gpio }
     }
-
-    pub fn init(mut self) -> GPIO {
-        let gpio = self.gpio.split_fuck();
+    pub fn init(mut self) -> Gpio {
+        let gpio = self.gpio.split();
         self.hal_gpio_init(&gpio);
         self.init_display();
 
@@ -92,18 +89,12 @@ impl HyperPixel {
 
     #[inline]
     fn set_clock_high(&self) {
-        unsafe {
-            self.gpio.gpset0().write_with_zero(|w| w.set11().set_bit());
-        }
+        self.gpio.pin11.set_high();
     }
 
     #[inline]
     fn set_clock_low(&self) {
-        unsafe {
-            self.gpio
-                .gpclr0()
-                .write_with_zero(|w| w.clr11().clear_bit_by_one());
-        }
+        self.gpio.pin11.set_low();
     }
 
     #[inline]
@@ -116,31 +107,20 @@ impl HyperPixel {
 
     #[inline]
     fn set_cs_high(&self) {
-        unsafe {
-            self.gpio.gpset0().write_with_zero(|w| w.set18().set_bit());
-        }
+        self.gpio.pin18.set_high();
     }
 
     #[inline]
     fn set_cs_low(&self) {
         //thank god for readable commands
-        unsafe {
-            self.gpio
-                .gpclr0()
-                .write_with_zero(|w| w.clr18().clear_bit_by_one());
-        }
+        self.gpio.pin18.set_low();
     }
 
     #[inline]
     fn set_mosi(&self, level: bool) {
-        unsafe {
             match level {
-                true => self.gpio.gpset0().write_with_zero(|w| w.set10().set_bit()),
-                false => self
-                    .gpio
-                    .gpclr0()
-                    .write_with_zero(|w| w.clr10().clear_bit_by_one()),
-            }
+                true => self.gpio.pin10.set_high(),
+                false => self.gpio.pin10.set_low(),
         }
     }
 
