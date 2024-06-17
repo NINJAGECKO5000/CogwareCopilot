@@ -29,36 +29,34 @@ impl HyperPixel {
     }
 
     pub fn hal_gpio_init(&self) {
-        self.gpio.pins[10].set_mode(PinMode::Output);
-        self.gpio.pins[11].set_mode(PinMode::Output);
-
-        self.gpio.pins[18..=19].iter().for_each(|p| {
+        self.gpio.pins[10..=11].iter().for_each(|p| {
             p.set_mode(PinMode::Output);
-            p.set_high();
+        });
+        self.gpio.pins[18..=19].iter().for_each(|p| {
+            p.set_mode(PinMode::Output).set_high();
         });
 
-        self.gpio.pins[0..=9]
-            .iter()
-            .for_each(|p| p.set_mode(PinMode::AF2));
-        self.gpio.pins[12..=17]
-            .iter()
-            .for_each(|p| p.set_mode(PinMode::AF2));
-        self.gpio.pins[20..=25]
-            .iter()
-            .for_each(|p| p.set_mode(PinMode::AF2));
+        self.gpio.pins[0..=9].iter().for_each(|p| {
+            p.set_mode(PinMode::AF2);
+        });
+        self.gpio.pins[12..=17].iter().for_each(|p| {
+            p.set_mode(PinMode::AF2);
+        });
+        self.gpio.pins[20..=25].iter().for_each(|p| {
+            p.set_mode(PinMode::AF2);
+        });
 
-        self.gpio.pins[0..=9]
-            .iter()
-            .for_each(|p| p.set_pupdn(PullUpDownMode::None));
+        self.gpio.pins[0..=9].iter().for_each(|p| {
+            p.set_pupdn(PullUpDownMode::None);
+        });
 
-        self.gpio.pins[12..=17]
-            .iter()
-            .for_each(|p| p.set_pupdn(PullUpDownMode::None));
+        self.gpio.pins[12..=17].iter().for_each(|p| {
+            p.set_pupdn(PullUpDownMode::None);
+        });
 
-        self.gpio.pins[20..=25]
-            .iter()
-            .for_each(|p| p.set_pupdn(PullUpDownMode::None));
-        
+        self.gpio.pins[20..=25].iter().for_each(|p| {
+            p.set_pupdn(PullUpDownMode::None);
+        });
     }
 
     #[inline]
@@ -95,7 +93,7 @@ impl HyperPixel {
         match level {
             true => self.gpio.pins[10].set_high(),
             false => self.gpio.pins[10].set_low(),
-        }
+        };
     }
 
     #[inline]
