@@ -45,18 +45,6 @@ impl HyperPixel {
         self.gpio.pins[20..=25].iter().for_each(|p| {
             p.set_mode(PinMode::AF2);
         });
-
-        self.gpio.pins[0..=9].iter().for_each(|p| {
-            p.set_pupdn(PullUpDownMode::None);
-        });
-
-        self.gpio.pins[12..=17].iter().for_each(|p| {
-            p.set_pupdn(PullUpDownMode::None);
-        });
-
-        self.gpio.pins[20..=25].iter().for_each(|p| {
-            p.set_pupdn(PullUpDownMode::None);
-        });
     }
 
     #[inline]
