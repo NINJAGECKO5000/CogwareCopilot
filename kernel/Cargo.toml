@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 tock-registers = { version = "0.8.x", default-features = false, features = ["register_types"]}
+embedded-hal = "1.0.0"
 cortex-a = "~8.1"
 space_invaders = { path = "../space_invaders", features= ["no_std"] }
 bitflags = "2.3"
