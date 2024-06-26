@@ -5,7 +5,7 @@ use bcm2837_hal::{
 };
 use embedded_hal::delay::DelayNs;
 
-const TICK_MICROS: u64 = 100;
+const TICK_MICROS: u32 = 100;
 
 #[derive(Debug)]
 pub enum Error {
@@ -86,7 +86,7 @@ impl<'a> HyperPixel<'a> {
 
     #[inline]
     fn tick(&mut self) {
-        self.timer.delay_us(TICK_MICROS as _);
+        self.timer.delay_us(TICK_MICROS);
         // sleep(Duration::from_micros(TICK_MICROS));
     }
 
