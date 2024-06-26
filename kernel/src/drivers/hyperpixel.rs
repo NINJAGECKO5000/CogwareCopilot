@@ -1,26 +1,26 @@
 use bcm2837_hal::{
-    gpio::{Gpio, GpioExt, PinMode, PullUpDownMode},
+    delay::Timer,
+    gpio::{Gpio, GpioExt, PinMode},
     pac,
 };
+use embedded_hal::delay::DelayNs;
 
-use crate::time::sleep;
-use core::time::Duration;
-
-const TICK_MICROS: u64 = 100;
+const TICK_MICROS: u32 = 100;
 
 #[derive(Debug)]
 pub enum Error {
     FuckYou,
 }
 
-pub struct HyperPixel {
+pub struct HyperPixel<'a> {
     gpio: Gpio,
+    timer: &'a mut Timer,
 }
 
-impl HyperPixel {
-    pub fn new(gpio: pac::GPIO) -> Self {
+impl<'a> HyperPixel<'a> {
+    pub fn new(gpio: pac::GPIO, timer: &'a mut Timer) -> Self {
         let gpio = gpio.split();
-        HyperPixel { gpio }
+        HyperPixel { gpio, timer }
     }
 
     pub fn init(mut self) {
@@ -58,7 +58,7 @@ impl HyperPixel {
     }
 
     #[inline]
-    fn pulse_clock(&self) {
+    fn pulse_clock(&mut self) {
         self.set_clock_low();
         self.tick();
         self.set_clock_high();
@@ -85,8 +85,9 @@ impl HyperPixel {
     }
 
     #[inline]
-    fn tick(&self) {
-        sleep(Duration::from_micros(TICK_MICROS));
+    fn tick(&mut self) {
+        self.timer.delay_us(TICK_MICROS);
+        // sleep(Duration::from_micros(TICK_MICROS));
     }
 
     // anyway this is the horrible shit I had to do
@@ -120,7 +121,7 @@ impl HyperPixel {
     #[inline]
     fn init_display(&mut self) {
         self.write_command(0x01);
-        sleep(Duration::from_millis(240));
+        self.timer.delay_ms(240);
 
         self.write_data(0xFF, &[0x77, 0x01, 0x00, 0x00, 0x13]);
         self.write_data(0xEF, &[0x08]);
@@ -239,17 +240,17 @@ impl HyperPixel {
         self.write_data(0x36, &[0x08]);
         self.write_data(0x3A, &[0x66]);
 
-        sleep(Duration::from_millis(120));
+        self.timer.delay_ms(120);
 
         self.write_data(0xFF, &[0x77, 0x01, 0x00, 0x00, 0x13]);
         self.write_data(0xE8, &[0x00, 0x0C]);
 
-        sleep(Duration::from_millis(10));
+        self.timer.delay_ms(10);
 
         self.write_data(0xE8, &[0x00, 0x00]);
         self.write_data(0xFF, &[0x77, 0x01, 0x00, 0x00]);
         self.write_data(0x29, &[]);
 
-        sleep(Duration::from_millis(20));
+        self.timer.delay_ms(20);
     }
 }
