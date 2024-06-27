@@ -38,12 +38,12 @@ mod mmio {
     pub const UART_OFFSET: usize = 0x0020_1000;
     pub const VIDEOCORE_MBOX_OFFSET: usize = 0x0000_B880;
     pub const TIME_OFFSET: usize = 0x0000_3000;
-    pub const EMMC_OFFSET: usize = 0x0034_0000;
+    pub const EMMC_OFFSET: usize = 0x0030_0000;
     pub const START: usize = 0xFE00_0000;
     pub const TIMER_REG_BASE: usize = IO_BASE + TIME_OFFSET;
     pub const PL011_UART_START: usize = IO_BASE + UART_OFFSET;
     pub const VIDEOCORE_MBOX_BASE: usize = IO_BASE + VIDEOCORE_MBOX_OFFSET;
-    pub const EMMC_START: usize = 0x7F30_0000;
+    pub const EMMC_START: usize = IO_BASE + EMMC_OFFSET;
 }
 
 #[inline]
@@ -68,7 +68,7 @@ fn main() {
 
     info!("Starting Driver!");
     // HyperPixel::new(&peripherals).hyperinit();
-    EMMC_CONT.emmc_init_card(&peripherals);
+    EMMC_CONT.emmc_init_card();
     //info!("hyperpixel is inited in theory");
     // where to add the rest of the program
     run_test(fb);
