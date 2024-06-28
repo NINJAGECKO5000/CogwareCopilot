@@ -9,15 +9,16 @@
 use crate::logger::IrisLogger;
 
 use bcm2837_hal as hal;
+use bcm2837_hal::pac::emmc;
 use hal::pac;
 
 use core::panic::PanicInfo;
 use cortex_a::asm;
 use cortex_a::registers::SCTLR_EL1;
 use drivers::HyperPixel;
+use embedded_sdmmc::sdcard::EMMCController;
 use pac::Peripherals;
 use space_invaders::run_test;
-
 mod boot;
 mod framebuffer;
 mod logger;
@@ -65,15 +66,17 @@ fn main() {
     let fb = mailbox::lfb_init(0).expect("Failed to init framebuffer");
     let peripherals = unsafe { Peripherals::steal() };
     let gpio = peripherals.GPIO;
-    let mut timer = hal::delay::Timer::new(peripherals.SYSTMR);
 
     info!("Starting Driver!");
+    let mut card = EMMCController::new(hal::delay::Timer::new());
+    let result = card.emmc_init_card();
+    let mut timer = hal::delay::Timer::new();
     let hp = HyperPixel::new(gpio, &mut timer);
     hp.init();
     //info!("we made it past initialization yay fdsg");
     info!("hyperpixel is inited in theory");
     // where to add the rest of the program
-    run_test(fb);
+    run_test(fb, result);
 }
 
 #[panic_handler]

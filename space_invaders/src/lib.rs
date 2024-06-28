@@ -8,11 +8,14 @@ extern crate core;
 mod framebuffer;
 mod time;
 
+use log::debug;
+
 use crate::framebuffer::color;
 pub use crate::framebuffer::fb_trait::FrameBufferInterface;
 use crate::framebuffer::fb_trait::LETTER_WIDTH;
 pub use crate::framebuffer::{Color, Coordinates};
 pub use crate::time::TimeManagerInterface;
+use core::fmt::Debug;
 // use crate::{Color, Coordinates, FrameBufferInterface};
 use core::mem;
 
@@ -51,20 +54,21 @@ mod macros {
         }};
     }
 }
-pub fn run_test<F>(mut fb: F)
+pub fn run_test<F, D>(mut fb: F, something: D)
 where
     F: FrameBufferInterface,
+    D: Debug,
 {
     loop {
         fb.clear_screen();
-        draw(&mut fb);
+        draw(&mut fb, &something);
         fb.update();
     }
 }
 
-fn draw(fb: &mut impl FrameBufferInterface) {
+fn draw(fb: &mut impl FrameBufferInterface, something: &impl Debug) {
     let mut message_buf = [0u8; 12 * mem::size_of::<char>()];
-    let text = format_to_buffer(&mut message_buf).expect("TODO: panic message");
+    let text = format_to_buffer(&mut message_buf, something).expect("TODO: panic message");
 
     let mut x = (SCREEN_WIDTH / 2) - 60;
     let y = (SCREEN_HEIGHT / 2) - 10;
@@ -75,10 +79,13 @@ fn draw(fb: &mut impl FrameBufferInterface) {
     }
 }
 
-fn format_to_buffer(buffer: &mut [u8]) -> Result<&str, core::fmt::Error> {
+fn format_to_buffer<'a>(
+    buffer: &'a mut [u8],
+    something: &'a impl Debug,
+) -> Result<&'a str, core::fmt::Error> {
     use core::fmt::Write;
     let mut output = BufferWrite::new(buffer);
-    write!(output, "Hello World")?;
+    write!(output, "{:?}", something)?;
 
     // Convert the buffer slice into a &str
     let written_length = output.written_length();
