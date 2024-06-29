@@ -18,7 +18,7 @@ embedded-hal = "1.0.0"
 heapless = "^0.8"
 log = {version = "0.4", default-features = false, optional = true}
 tock-registers = { version = "0.8.x", default-features = false, features = ["register_types"]}
-bcm2837-hal = { path = "../bcm2837-hal"}
+bcm2837-hal = { path = "../../bcm2837-hal"}
 [dev-dependencies]
 chrono = "0.4"
 embedded-hal-bus = "0.1.0"
