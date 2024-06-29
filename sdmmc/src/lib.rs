@@ -72,6 +72,8 @@ pub mod blockdevice;
 pub mod fat;
 pub mod filesystem;
 pub mod sdcard;
+pub mod time;
+
 use bcm2837_hal as hal;
 use filesystem::SearchId;
 

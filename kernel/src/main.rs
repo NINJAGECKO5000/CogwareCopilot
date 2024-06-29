@@ -3,18 +3,20 @@
 #![allow(missing_docs)]
 #![feature(format_args_nl)]
 #![feature(alloc_error_handler)]
-#![feature(panic_info_message)]
+// #![feature(panic_info_message)]
 #![feature(asm_const)]
+
+use core::panic::PanicInfo;
 
 use crate::logger::IrisLogger;
 
 use bcm2837_hal as hal;
-use bcm2837_hal::pac::emmc;
+use cortex_a::asm;
+use embedded_sdmmc::time::DummyTimesource;
+// use bcm2837_hal::pac::emmc;
 use embedded_sdmmc::VolumeManager;
 use hal::pac;
 
-use core::panic::PanicInfo;
-use cortex_a::asm;
 use cortex_a::registers::SCTLR_EL1;
 use drivers::HyperPixel;
 use embedded_sdmmc::sdcard::EMMCController;
@@ -53,7 +55,7 @@ unsafe fn kernel_init() -> ! {
     unsafe {
         PL011_UART.init().unwrap();
     }
-    println!("kernel_init");
+    info!("kernel_init");
     IRIS_LOGGER.init().unwrap();
     let max_clock_speed = max_clock_speed();
     info!("Kernel speed: {:?}", max_clock_speed);
@@ -68,14 +70,37 @@ fn main() {
     let peripherals = unsafe { Peripherals::steal() };
     let gpio = peripherals.GPIO;
 
-    info!("Starting Driver!");
+    info!("Starting Drivers!");
+    info!("Initializing EMMC Controller...");
     let mut card = EMMCController::new();
     let result = card.emmc_init_card();
-    //let mut volume_mgr = VolumeManager::new(card, timer);
-    let mut timer = hal::delay::Timer::new();
-    let hp = HyperPixel::new(gpio, &mut timer);
-    hp.init();
-    //info!("we made it past initialization yay fdsg");
+    info!("EMMC Controller initialized!");
+
+    info!("Initializing Volume Manager...");
+    let time_source = DummyTimesource::default();
+    let mut volume_mgr = VolumeManager::new(card, time_source);
+    info!("Volume Manager initialized!");
+
+    info!("Opening Volume 0...");
+    let mut volume0 = volume_mgr
+        .open_volume(embedded_sdmmc::VolumeIdx(0))
+        .expect("failed to open volume 0");
+
+    info!("Done!");
+    info!("Volume 0: {:?}", volume0);
+
+    info!("Opening Volume 0...");
+    let root_dir = volume0
+        .open_root_dir()
+        .expect("failed to open root directory");
+
+    info!("Done!");
+    info!("Root directory: {:#?}", root_dir);
+
+    // let mut timer = hal::delay::Timer::new();
+    // let hp = HyperPixel::new(gpio, &mut timer);
+    // hp.init();
+    info!("we made it past initialization yay fdsg");
     info!("hyperpixel is inited in theory");
     // where to add the rest of the program
     run_test(fb, result);
@@ -83,7 +108,7 @@ fn main() {
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    println!("PANIC!{}", info);
+    error!("PANIC! {}", info);
     loop {
         asm::wfe()
     }

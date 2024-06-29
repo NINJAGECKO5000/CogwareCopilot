@@ -1505,7 +1505,7 @@ pub struct EMMCController {
     registers: Registers,
 }
 
-impl BlockDevice for &EMMCController {
+impl BlockDevice for EMMCController {
     type Error = SdResult;
     /// Read one or more blocks, starting at the given block index.
     fn read(
@@ -1555,6 +1555,20 @@ impl BlockDevice for &EMMCController {
     }
 }
 
+/// Spin while waiting for some condition to return false.
+///
+/// Returns `true` if the timeout was reached before the condition was met, and `false` if
+/// not.
+fn timeout<F: Fn() -> bool>(duration: Duration, f: F) -> bool {
+    let target = timer().now() + duration;
+
+    while f() && timer().now() <= target {
+        core::hint::spin_loop()
+    }
+
+    return timer().now() > target;
+}
+
 impl EMMCController {
     /// Create an instance.
     ///
@@ -1594,18 +1608,14 @@ impl EMMCController {
     /// - EMMC_OK - the wait completed with a mask state as requested
     /// --------------------------------------------------------------------------
     pub fn emmc_wait_for_interrupt(&self, mask: u32) -> SdResult {
-        let mut timer = timer();
-
-        let target = timer.now() + Duration::from_secs(1);
         let t_mask: u32 = mask | INT_ERROR_MASK as u32; // Add fatal error masks to mask provided
 
-        while (self.registers.EMMC_INTERRUPT.get() & t_mask) == 0 && (timer.now() <= target) {
-            core::hint::spin_loop();
-        }
-
+        let timed_out = timeout(Duration::from_secs(100), || {
+            (self.registers.EMMC_INTERRUPT.get() & t_mask) == 0
+        });
         let ival = self.registers.EMMC_INTERRUPT.get(); // Fetch all the interrupt flags
 
-        if timer.now() >= target                         // No response recieved, timeout occurred
+        if timed_out                         // No response recieved, timeout occurred
             || (ival & INT_CMD_TIMEOUT as u32) != 0     // Command timeout occurred 
             || (ival & INT_DATA_TIMEOUT as u32) != 0
         // Data timeout occurred
@@ -1647,19 +1657,13 @@ impl EMMCController {
     /// - EMMC_BUSY - the command was not completed within 1 second period
     /// - EMMC_OK - the wait completed sucessfully
     pub fn emmc_wait_for_command(&self) -> SdResult {
-        let mut timer = timer();
-        let target = timer.now() + Duration::from_secs(1);
+        let timed_out = timeout(Duration::from_secs(1), || {
+            (self.registers.EMMC_STATUS.matches_all(STATUS::CMD_INHIBIT.val(1)))	  // Command inhibit signal
+            && (self.registers.EMMC_INTERRUPT.get() & INT_ERROR_MASK as u32) == 0
+            // No error occurred
+        });
 
-        while (self.registers.EMMC_STATUS.matches_all(STATUS::CMD_INHIBIT.val(1)))	  // Command inhibit signal
-            && (self.registers.EMMC_INTERRUPT.get() & INT_ERROR_MASK as u32) == 0   // No error occurred
-            && (timer.now() <= target)
-        // Timeout not reached
-        {
-            core::hint::spin_loop();
-        }
-
-        if (timer.now() >= target)
-            || (self.registers.EMMC_INTERRUPT.get() & INT_ERROR_MASK as u32) != 0
+        if timed_out || (self.registers.EMMC_INTERRUPT.get() & INT_ERROR_MASK as u32) != 0
         // Error occurred or it timed out
         {
             info!(
@@ -1679,19 +1683,13 @@ impl EMMCController {
     /// - EMMC_BUSY - the transfer was not completed within 1 second period
     /// - EMMC_OK - the transfer completed sucessfully
     pub fn emmc_wait_for_data(&self) -> SdResult {
-        let mut timer = timer();
-        let target = timer.now() + Duration::from_secs(1);
+        let timed_out = timeout(Duration::from_secs(1), || {
+            (self.registers.EMMC_STATUS.matches_all(STATUS::DAT_INHIBIT.val(1))) &&		// Data inhibit signal
+              (self.registers.EMMC_INTERRUPT.get() & INT_ERROR_MASK as u32) == 0
+            // Some error occurred
+        });
 
-        while (self.registers.EMMC_STATUS.matches_all(STATUS::DAT_INHIBIT.val(1))) &&		// Data inhibit signal
-              (self.registers.EMMC_INTERRUPT.get() & INT_ERROR_MASK as u32) == 0 &&	  // Some error occurred
-              (timer.now() <= target)
-        // Timeout not reached
-        {
-            core::hint::spin_loop();
-        }
-        if (timer.now() >= target)
-            || (self.registers.EMMC_INTERRUPT.get() & INT_ERROR_MASK as u32) != 0
-        {
+        if timed_out || (self.registers.EMMC_INTERRUPT.get() & INT_ERROR_MASK as u32) != 0 {
             info!(
                 "EMMC: Wait for data aborted: {} :{} :{}\n",
                 self.registers.EMMC_STATUS.get(),
@@ -2204,7 +2202,6 @@ impl EMMCController {
     /// - EMMC_ERROR_CLOCK - A fatal error occurred setting the clock
     /// - EMMC_OK - the clock was changed to given frequency
     pub fn emmc_set_clock2(&self, freq: u32) -> SdResult {
-        let mut timer = timer();
         // A divisor of zero doesnt work. I think a divisor of 1 equates to half the base clock rate.
         // TODO: need to find confirmation of the above.
         assert!(freq < BASE_CLOCK as u32);
@@ -2220,16 +2217,13 @@ impl EMMCController {
         info!("control1: {:b}", control1);
         self.registers.EMMC_CONTROL1.set(control1);
 
-        let target = timer.now() + Duration::from_secs(1);
+        let timed_out = timeout(Duration::from_secs(1), || {
+            self.registers
+                .EMMC_CONTROL1
+                .matches_all(CONTROL1::CLK_STABLE.val(0)) // Clock not stable yet
+        });
 
-        while (self.registers.EMMC_CONTROL1.matches_all(CONTROL1::CLK_STABLE.val(0)) // Clock not stable yet
-            && (timer.now() <= target))
-        // Timeout not reached
-        {
-            core::hint::spin_loop();
-        }
-
-        if (timer.now() >= target) {
+        if timed_out {
             // Timed out waiting for stability flag
             #[cfg(feature = "log")]
             info!("EMMC: ERROR: failed to get stable clock.\n");
@@ -2242,55 +2236,6 @@ impl EMMCController {
             (BASE_CLOCK as u32 / div)
         );
 
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
-        //nerd
         return SdResult::EMMC_OK; // Clock frequency set worked
     }
 
@@ -2303,16 +2248,21 @@ impl EMMCController {
         let mut timer = timer();
         self.registers.EMMC_CONTROL1.write(CONTROL1::SRST_HC.val(1)); // Reset the complete host circuit
         timer.delay_us(10); // Wait 10 microseconds
-        let target = timer.now() + Duration::from_micros(100000000);
+                            // let target = timer.now() + Duration::from_micros(100000000);
 
         info!("EMMC: reset card.");
-        while (self.registers.EMMC_CONTROL1.matches_all(CONTROL1::SRST_HC.val(1))) // Host circuit reset not clear yet
-                && (timer.now() <= target)
-        // Timeout not reached
-        {
-            core::hint::spin_loop();
-        }
-        if (timer.now() >= target) {
+        let timed_out = timeout(Duration::from_secs(1), || {
+            self.registers
+                .EMMC_CONTROL1
+                .matches_all(CONTROL1::SRST_HC.val(1)) // Host circuit reset not clear yet
+        });
+        // while (self.registers.EMMC_CONTROL1.matches_all(CONTROL1::SRST_HC.val(1))) // Host circuit reset not clear yet
+        //         && (timer.now() <= target)
+        // // Timeout not reached
+        // {
+        //     core::hint::spin_loop();
+        // }
+        if timed_out {
             #[cfg(feature = "log")] // Timeout waiting for reset flag
             info!("EMMC: ERROR: failed to reset.\n");
             info!("CONTROL1 REGISTER {:b}", self.registers.EMMC_CONTROL1.get());
