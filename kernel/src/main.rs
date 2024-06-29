@@ -10,6 +10,7 @@ use crate::logger::IrisLogger;
 
 use bcm2837_hal as hal;
 use bcm2837_hal::pac::emmc;
+use embedded_sdmmc::VolumeManager;
 use hal::pac;
 
 use core::panic::PanicInfo;
@@ -68,8 +69,9 @@ fn main() {
     let gpio = peripherals.GPIO;
 
     info!("Starting Driver!");
-    let mut card = EMMCController::new(hal::delay::Timer::new());
+    let mut card = EMMCController::new();
     let result = card.emmc_init_card();
+    //let mut volume_mgr = VolumeManager::new(card, timer);
     let mut timer = hal::delay::Timer::new();
     let hp = HyperPixel::new(gpio, &mut timer);
     hp.init();

@@ -1,0 +1,10 @@
+/home/ninja/Desktop/embedded-sdmmc-rs/target/debug/deps/libtock_registers-7752e6d28674c283.rmeta: /home/ninja/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tock-registers-0.8.1/src/lib.rs /home/ninja/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tock-registers-0.8.1/src/fields.rs /home/ninja/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tock-registers-0.8.1/src/interfaces.rs /home/ninja/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tock-registers-0.8.1/src/macros.rs /home/ninja/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tock-registers-0.8.1/src/registers.rs /home/ninja/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tock-registers-0.8.1/src/local_register.rs
+
+/home/ninja/Desktop/embedded-sdmmc-rs/target/debug/deps/tock_registers-7752e6d28674c283.d: /home/ninja/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tock-registers-0.8.1/src/lib.rs /home/ninja/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tock-registers-0.8.1/src/fields.rs /home/ninja/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tock-registers-0.8.1/src/interfaces.rs /home/ninja/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tock-registers-0.8.1/src/macros.rs /home/ninja/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tock-registers-0.8.1/src/registers.rs /home/ninja/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tock-registers-0.8.1/src/local_register.rs
+
+/home/ninja/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tock-registers-0.8.1/src/lib.rs:
+/home/ninja/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tock-registers-0.8.1/src/fields.rs:
+/home/ninja/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tock-registers-0.8.1/src/interfaces.rs:
+/home/ninja/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tock-registers-0.8.1/src/macros.rs:
+/home/ninja/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tock-registers-0.8.1/src/registers.rs:
+/home/ninja/.cargo/registry/src/index.crates.io-6f17d22bba15001f/tock-registers-0.8.1/src/local_register.rs:

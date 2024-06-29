@@ -8,7 +8,7 @@ version = "9.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ac42a04a61c19fc8196dd728022a784baecc5d63d7e256c01ad1b3fbfab26287"
 dependencies = [
- "tock-registers 0.8.1",
+ "tock-registers",
 ]
 
 [[package]]
@@ -97,7 +97,7 @@ dependencies = [
  "embedded-sdmmc",
  "log",
  "space_invaders",
- "tock-registers 0.8.1",
+ "tock-registers",
 ]
 
 [[package]]
@@ -106,7 +106,7 @@ version = "8.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8256fd5103e10027467cc7a97c9ff27fcc4547ea24864da0aff2e7aef6e18e28"
 dependencies = [
- "tock-registers 0.8.1",
+ "tock-registers",
 ]
 
 [[package]]
@@ -152,7 +152,7 @@ dependencies = [
  "embedded-hal",
  "heapless",
  "log",
- "tock-registers 0.9.0",
+ "tock-registers",
 ]
 
 [[package]]
@@ -740,12 +740,6 @@ name = "tock-registers"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "696941a0aee7e276a165a978b37918fd5d22c55c3d6bda197813070ca9c0f21c"
-
-[[package]]
-name = "tock-registers"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b9e2fdb3a1e862c0661768b7ed25390811df1947a8acbfbefe09b47078d93c4"
 
 [[package]]
 name = "unicode-ident"
