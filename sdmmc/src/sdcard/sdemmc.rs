@@ -797,12 +797,12 @@ mod rpi4_constants {
     pub const INT_AUTO_ERROR    : usize = 0x01000000; // ACMD_ERR bit in register
     pub const INT_DATA_END_ERR  : usize = 0x00400000; // DEND_ERR bit in register
     pub const INT_DATA_CRC_ERR  : usize = 0x00200000; // DCRC_ERR bit in register
-    pub const INT_DATA_TIMEOUT  : usize = 0x00100000; // DTO_ERR bit in register
+    // pub const INT_DATA_TIMEOUT  : usize = 0x00100000; // DTO_ERR bit in register
     pub const INT_INDEX_ERROR   : usize = 0x00080000; // CBAD_ERR bit in register
     pub const INT_END_ERROR     : usize = 0x00040000; // CEND_ERR bit in register
     pub const INT_CRC_ERROR     : usize = 0x00020000; // CCRC_ERR bit in register
     pub const INT_CMD_TIMEOUT   : usize = 0x00010000; // CTO_ERR bit in register
-    pub const INT_ERR           : usize = 0x00008000; // ERR bit in register
+    // pub const INT_ERR           : usize = 0x00008000; // ERR bit in register
     pub const INT_ENDBOOT       : usize = 0x00004000; // ENDBOOT bit in register
     pub const INT_BOOTACK       : usize = 0x00002000; // BOOTACK bit in register
     pub const INT_RETUNE        : usize = 0x00001000; // RETUNE bit in register
@@ -815,10 +815,10 @@ mod rpi4_constants {
     pub const INT_ERROR_MASK    : usize = INT_CRC_ERROR
         | INT_END_ERROR
         | INT_INDEX_ERROR
-        | INT_DATA_TIMEOUT
+        // | INT_DATA_TIMEOUT
         | INT_DATA_CRC_ERR
         | INT_DATA_END_ERR
-        | INT_ERR
+        // | INT_ERR
         | INT_AUTO_ERROR;
     pub const INT_ALL_MASK      : usize =
         INT_CMD_DONE | INT_DATA_DONE | INT_READ_RDY | INT_WRITE_RDY | INT_ERROR_MASK;
@@ -827,7 +827,7 @@ mod rpi4_constants {
     						  SD CARD FREQUENCIES							   
     --------------------------------------------------------------------------*/
     pub const FREQ_SETUP  : usize = 400_000; // 400 Khz
-    pub const FREQ_NORMAL : usize = 10_000_000; // 25 Mhz
+    pub const FREQ_NORMAL : usize = 20_000_000; // 25 Mhz
     pub const BASE_CLOCK  : usize = 41_666_666; // 50Mhz
 
     /*--------------------------------------------------------------------------
@@ -1616,8 +1616,9 @@ impl EMMCController {
         let ival = self.registers.EMMC_INTERRUPT.get(); // Fetch all the interrupt flags
 
         if timed_out                         // No response recieved, timeout occurred
-            || (ival & INT_CMD_TIMEOUT as u32) != 0     // Command timeout occurred 
-            || (ival & INT_DATA_TIMEOUT as u32) != 0
+            || (ival & INT_CMD_TIMEOUT as u32) != 0
+        // Command timeout occurred
+        // || (ival & INT_DATA_TIMEOUT as u32) != 0
         // Data timeout occurred
         {
             info!(

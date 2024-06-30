@@ -6,15 +6,23 @@
 // #![feature(panic_info_message)]
 #![feature(asm_const)]
 
+extern crate alloc;
+
+#[global_allocator]
+static HEAP: Heap = Heap::empty();
+
 use core::panic::PanicInfo;
 
 use crate::logger::IrisLogger;
 
+use alloc::string::String;
+use alloc::vec;
 use bcm2837_hal as hal;
 use cortex_a::asm;
+use embedded_alloc::Heap;
 use embedded_sdmmc::time::DummyTimesource;
 // use bcm2837_hal::pac::emmc;
-use embedded_sdmmc::VolumeManager;
+use embedded_sdmmc::{Mode, VolumeManager};
 use hal::pac;
 
 use cortex_a::registers::SCTLR_EL1;
@@ -51,6 +59,15 @@ mod mmio {
 
 #[inline]
 unsafe fn kernel_init() -> ! {
+    // Initialize the allocator BEFORE you use it
+    // idiot
+    {
+        use core::mem::MaybeUninit;
+        const HEAP_SIZE: usize = 2048;
+        static mut HEAP_MEM: [MaybeUninit<u8>; HEAP_SIZE] = [MaybeUninit::uninit(); HEAP_SIZE];
+        unsafe { HEAP.init(HEAP_MEM.as_ptr() as usize, HEAP_SIZE) }
+    }
+
     SCTLR_EL1.modify(SCTLR_EL1::C::Cacheable + SCTLR_EL1::I::Cacheable);
     unsafe {
         PL011_UART.init().unwrap();
@@ -67,7 +84,8 @@ unsafe fn kernel_init() -> ! {
 fn main() {
     info!("main");
     let fb = mailbox::lfb_init(0).expect("Failed to init framebuffer");
-    let peripherals = unsafe { Peripherals::steal() };
+    let peripherals = Peripherals::take().expect("Failed to get peripherals");
+    // let peripherals = unsafe { Peripherals::steal() };
     let gpio = peripherals.GPIO;
 
     info!("Starting Drivers!");
@@ -90,18 +108,40 @@ fn main() {
     info!("Volume 0: {:?}", volume0);
 
     info!("Opening Volume 0...");
-    let root_dir = volume0
+    let mut root_dir = volume0
         .open_root_dir()
         .expect("failed to open root directory");
 
     info!("Done!");
-    info!("Root directory: {:#?}", root_dir);
+    // info!("Root directory: {:#?}", root_dir);
+
+    let mut config_file = root_dir
+        .open_file_in_dir("CONFIG.TXT", Mode::ReadOnly)
+        .expect("Failed to open CONFIG.TXT");
+
+    info!("Reading CONFIG.TXT");
+
+    let mut out = String::new();
+    let mut buf = [0u8; 32];
+
+    while !config_file.is_eof() {
+        let num_read = config_file
+            .read(&mut buf)
+            .expect("Failed to read CONFIG.TXT");
+        for b in &buf[0..num_read] {
+            out.push(*b as char)
+        }
+    }
+
+    info!("CONFIG FILE:\n{}", out);
+    info!("DONE YEEHAW");
 
     // let mut timer = hal::delay::Timer::new();
     // let hp = HyperPixel::new(gpio, &mut timer);
     // hp.init();
+    // info!("hyperpixel is inited in theory");
+    //
     info!("we made it past initialization yay fdsg");
-    info!("hyperpixel is inited in theory");
     // where to add the rest of the program
     run_test(fb, result);
 }

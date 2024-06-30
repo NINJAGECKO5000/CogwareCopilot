@@ -16,7 +16,7 @@ byteorder = {version = "1", default-features = false}
 defmt = {version = "0.3", optional = true}
 embedded-hal = "1.0.0"
 heapless = "^0.8"
-log = {version = "0.4", default-features = false, optional = true}
+log = {version = "0.4", default-features = false, optional = true }
 tock-registers = { version = "0.8.x", default-features = false, features = ["register_types"]}
 bcm2837-hal = { path = "../../bcm2837-hal"}
 [dev-dependencies]

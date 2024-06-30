@@ -68,7 +68,8 @@ where
 
 fn draw(fb: &mut impl FrameBufferInterface, something: &impl Debug) {
     let mut message_buf = [0u8; 12 * mem::size_of::<char>()];
-    let text = format_to_buffer(&mut message_buf, something).expect("TODO: panic message");
+    let text =
+        format_to_buffer(&mut message_buf, something).expect("Failed to format message to buffer");
 
     let mut x = (SCREEN_WIDTH / 2) - 60;
     let y = (SCREEN_HEIGHT / 2) - 10;
