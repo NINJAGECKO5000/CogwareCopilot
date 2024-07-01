@@ -8,26 +8,22 @@
 
 extern crate alloc;
 
-#[global_allocator]
-static HEAP: Heap = Heap::empty();
-
 use core::panic::PanicInfo;
 
 use crate::logger::IrisLogger;
 
 use alloc::string::String;
-use alloc::vec;
+use alloc::{format, vec};
 use bcm2837_hal as hal;
 use cortex_a::asm;
 use embedded_alloc::Heap;
 use embedded_sdmmc::time::DummyTimesource;
-// use bcm2837_hal::pac::emmc;
 use embedded_sdmmc::{Mode, VolumeManager};
 use hal::pac;
 
 use cortex_a::registers::SCTLR_EL1;
 use drivers::HyperPixel;
-use embedded_sdmmc::sdcard::EMMCController;
+use embedded_sdmmc::sdcard::{EMMCController, SdResult};
 use pac::Peripherals;
 use space_invaders::run_test;
 mod boot;
@@ -39,10 +35,16 @@ mod uart_pl011;
 
 use crate::mailbox::{max_clock_speed, set_clock_speed};
 use crate::mmio::PL011_UART_START;
-// use crate::time::TIME_MANAGER;
 use crate::uart_pl011::PL011Uart;
 use log::{debug, error, info};
 use tock_registers::interfaces::ReadWriteable;
+
+// Allocating 384MB for the heap
+// Should be fine, right?
+const HEAP_SIZE: usize = 384_000_000;
+
+#[global_allocator]
+static HEAP: Heap = Heap::empty();
 
 static IRIS_LOGGER: IrisLogger = IrisLogger::new();
 pub static PL011_UART: PL011Uart = unsafe { PL011Uart::new(PL011_UART_START) };
@@ -63,7 +65,6 @@ unsafe fn kernel_init() -> ! {
     // idiot
     {
         use core::mem::MaybeUninit;
-        const HEAP_SIZE: usize = 2048;
         static mut HEAP_MEM: [MaybeUninit<u8>; HEAP_SIZE] = [MaybeUninit::uninit(); HEAP_SIZE];
         unsafe { HEAP.init(HEAP_MEM.as_ptr() as usize, HEAP_SIZE) }
     }
@@ -72,6 +73,7 @@ unsafe fn kernel_init() -> ! {
     unsafe {
         PL011_UART.init().unwrap();
     }
+
     info!("kernel_init");
     IRIS_LOGGER.init().unwrap();
     let max_clock_speed = max_clock_speed();
@@ -85,13 +87,16 @@ fn main() {
     info!("main");
     let fb = mailbox::lfb_init(0).expect("Failed to init framebuffer");
     let peripherals = Peripherals::take().expect("Failed to get peripherals");
-    // let peripherals = unsafe { Peripherals::steal() };
+
     let gpio = peripherals.GPIO;
 
     info!("Starting Drivers!");
+
+    // Initialize EMMC Controller
     info!("Initializing EMMC Controller...");
     let mut card = EMMCController::new();
-    let result = card.emmc_init_card();
+    card.emmc_init_card();
+
     info!("EMMC Controller initialized!");
 
     info!("Initializing Volume Manager...");
@@ -99,51 +104,60 @@ fn main() {
     let mut volume_mgr = VolumeManager::new(card, time_source);
     info!("Volume Manager initialized!");
 
+    let out = match open_file(&mut volume_mgr, "CONFIG.TXT") {
+        Ok(f) => f,
+        Err(e) => format!("{:?}", e),
+    };
+
+    info!("CONFIG.TXT:\n{}", out);
+
+    info!("Initializing HyperPixel...");
+    // Initialize HyperPixel display
+    let mut timer = hal::delay::Timer::new();
+    let hp = HyperPixel::new(gpio, &mut timer);
+    hp.init();
+    info!("hyperpixel is inited in theory");
+
+    info!("we made it past initialization yay fdsg");
+    // where to add the rest of the program
+    run_test(fb, &out);
+}
+
+fn open_file(
+    volume_mgr: &mut VolumeManager<EMMCController, DummyTimesource>,
+    file: &str,
+) -> Result<String, embedded_sdmmc::Error<SdResult>> {
     info!("Opening Volume 0...");
-    let mut volume0 = volume_mgr
-        .open_volume(embedded_sdmmc::VolumeIdx(0))
-        .expect("failed to open volume 0");
+    let mut volume0 = volume_mgr.open_volume(embedded_sdmmc::VolumeIdx(0))?;
 
     info!("Done!");
     info!("Volume 0: {:?}", volume0);
 
     info!("Opening Volume 0...");
-    let mut root_dir = volume0
-        .open_root_dir()
-        .expect("failed to open root directory");
+    let mut root_dir = volume0.open_root_dir()?;
 
     info!("Done!");
-    // info!("Root directory: {:#?}", root_dir);
+    info!("Root directory: {:#?}", root_dir);
 
-    let mut config_file = root_dir
-        .open_file_in_dir("CONFIG.TXT", Mode::ReadOnly)
-        .expect("Failed to open CONFIG.TXT");
+    let mut config_file = root_dir.open_file_in_dir(file, Mode::ReadOnly)?;
 
-    info!("Reading CONFIG.TXT");
+    info!("Reading {}", file);
 
-    let mut out = String::new();
-    let mut buf = [0u8; 32];
+    // let mut out = String::with_capacity(config_file.length());
+    // let mut out = String::new();
+    let mut buf = vec![0u8; config_file.length() as _];
+    info!("Vec len: {}", buf.len());
 
     while !config_file.is_eof() {
-        let num_read = config_file
-            .read(&mut buf)
-            .expect("Failed to read CONFIG.TXT");
-        for b in &buf[0..num_read] {
-            out.push(*b as char)
-        }
+        config_file.read(&mut buf)?;
+        // for b in &buf[0..num_read] {
+        //     out.push(*b as char)
+        // }
     }
 
-    info!("CONFIG FILE:\n{}", out);
-    info!("DONE YEEHAW");
+    let out = String::from_utf8(buf).unwrap();
 
-    // let mut timer = hal::delay::Timer::new();
-    // let hp = HyperPixel::new(gpio, &mut timer);
-    // hp.init();
-    // info!("hyperpixel is inited in theory");
-    //
-    info!("we made it past initialization yay fdsg");
-    // where to add the rest of the program
-    run_test(fb, result);
+    Ok(out)
 }
 
 #[panic_handler]

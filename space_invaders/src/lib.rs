@@ -54,26 +54,25 @@ mod macros {
         }};
     }
 }
-pub fn run_test<F, D>(mut fb: F, something: D)
+pub fn run_test<F>(mut fb: F, message: &str)
 where
     F: FrameBufferInterface,
-    D: Debug,
 {
     loop {
         fb.clear_screen();
-        draw(&mut fb, &something);
+        draw(&mut fb, message);
         fb.update();
     }
 }
 
-fn draw(fb: &mut impl FrameBufferInterface, something: &impl Debug) {
-    let mut message_buf = [0u8; 12 * mem::size_of::<char>()];
-    let text =
-        format_to_buffer(&mut message_buf, something).expect("Failed to format message to buffer");
+fn draw(fb: &mut impl FrameBufferInterface, message: &str) {
+    // let mut message_buf = [0u8; 12 * mem::size_of::<char>()];
+    // let text =
+    //     format_to_buffer(&mut message_buf, something).expect("Failed to format message to buffer");
 
     let mut x = (SCREEN_WIDTH / 2) - 60;
     let y = (SCREEN_HEIGHT / 2) - 10;
-    for c in text.chars() {
+    for c in message.chars() {
         // right distance after each character
         x += LETTER_WIDTH as u32;
         fb.write_char(c, Coordinates::new(x, y), UI_SCORE_COLOR);
