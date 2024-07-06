@@ -10,6 +10,6 @@ group :uart do
     gem 'serialport'
 end
 
-group :development do
-    gem 'rubocop', '>= 1.38.0', require: false
-end
+#group :development do
+#   gem 'rubocop', '>= 1.38.0', require: false
+#end
