@@ -9,12 +9,10 @@
 
 extern crate alloc;
 
-use alloc::{format, string::String, vec};
 mod bsp;
 mod console;
 mod cpu;
 mod driver;
-use embedded_alloc::Heap;
 mod fb_trait;
 mod framebuffer;
 mod mailbox;
@@ -23,18 +21,18 @@ mod print;
 mod synchronization;
 mod time;
 
-use crate::mailbox::{max_clock_speed, set_clock_speed};
+use alloc::{format, string::String, vec};
+use bsp::memory::initialize_heap;
+use core::time::Duration;
 use embedded_sdmmc::{
     sdcard::{EMMCController, SdResult},
     time::DummyTimesource,
     Mode, VolumeManager,
 };
+
+use crate::mailbox::{max_clock_speed, set_clock_speed};
 use fb_trait::FrameBufferInterface;
 use framebuffer::FrameBuffer;
-
-const HEAP_SIZE: usize = 384_000_000;
-#[global_allocator]
-static HEAP: Heap = Heap::empty();
 
 /// Early init code.
 ///
@@ -69,11 +67,10 @@ unsafe fn kernel_init() -> ! {
 
 /// The main function running after the early init.
 fn kernel_main() -> ! {
-    use core::mem::MaybeUninit;
-    static mut HEAP_MEM: [MaybeUninit<u8>; HEAP_SIZE] = [MaybeUninit::uninit(); HEAP_SIZE];
-    unsafe { HEAP.init(HEAP_MEM.as_ptr() as usize, HEAP_SIZE) }
-
-    use core::time::Duration;
+    initialize_heap();
+    // use core::mem::MaybeUninit;
+    // static mut HEAP_MEM: [MaybeUninit<u8>; HEAP_SIZE] = [MaybeUninit::uninit(); HEAP_SIZE];
+    // unsafe { HEAP.init(HEAP_MEM.as_ptr() as usize, HEAP_SIZE) }
 
     info!(
         "{} version {}",
