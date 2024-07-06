@@ -8,6 +8,8 @@ __rpi_phys_dram_start_addr = 0;
 /* The physical address at which the the kernel binary will be loaded by the Raspberry's firmware */
 __rpi_phys_binary_load_addr = 0x80000;
 
+PAGE_SIZE = 64K;
+PAGE_MASK = PAGE_SIZE - 1;
 
 ENTRY(__rpi_phys_binary_load_addr)
 
@@ -24,6 +26,7 @@ PHDRS
     segment_boot_core_stack PT_LOAD FLAGS(6);
     segment_code            PT_LOAD FLAGS(5);
     segment_data            PT_LOAD FLAGS(6);
+    segment_heap            PT_LOAD FLAGS(6);
 }
 
 SECTIONS
@@ -56,6 +59,8 @@ SECTIONS
 
     .rodata : ALIGN(8) { *(.rodata*) } :segment_code
 
+    . = ALIGN(PAGE_SIZE);
+
     /***********************************************************************************************
     * Data + BSS
     ***********************************************************************************************/
@@ -69,6 +74,20 @@ SECTIONS
         . = ALIGN(16);
         __bss_end_exclusive = .;
     } :segment_data
+
+    . = ALIGN(PAGE_SIZE);
+
+    /***********************************************************************************************
+    * Heap
+    ***********************************************************************************************/
+    __heap_start = .;
+    .heap (NOLOAD) :
+    {
+        . += 384 * 1024 * 1024;
+    } :segment_heap
+    __heap_end_exclusive = .;
+
+    ASSERT((. & PAGE_MASK) == 0, "Heap is not page aligned")
 
     /***********************************************************************************************
     * Misc
