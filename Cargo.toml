@@ -30,6 +30,7 @@ cortex-a = "8.1.1"
 noto-sans-mono-bitmap = "0.3.0"
 embedded-graphics = "0.8.1"
 tinybmp = "0.6.0"
+qoi = { version = "0.4.1", default-features = false, features = ["alloc"] }
 
 # Platform specific dependencies
 [target.'cfg(target_arch = "aarch64")'.dependencies]

@@ -50,6 +50,7 @@ unsafe fn kernel_init() -> ! {
     {
         let mut u: MaybeUninit<FrameBuffer> = MaybeUninit::uninit();
         driver::driver_manager().init_drivers();
+        initialize_heap();
         info!("kernel_init");
         let max_clock_speed = max_clock_speed();
         set_clock_speed(max_clock_speed.unwrap());
@@ -67,7 +68,6 @@ unsafe fn kernel_init() -> ! {
 
 /// The main function running after the early init.
 fn kernel_main() -> ! {
-    initialize_heap();
     // use core::mem::MaybeUninit;
     // static mut HEAP_MEM: [MaybeUninit<u8>; HEAP_SIZE] = [MaybeUninit::uninit(); HEAP_SIZE];
     // unsafe { HEAP.init(HEAP_MEM.as_ptr() as usize, HEAP_SIZE) }
