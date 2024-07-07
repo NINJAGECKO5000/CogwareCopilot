@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use super::Plane;
 
 #[derive(Clone, Copy)]
@@ -6,6 +8,10 @@ enum Control {
     Unity = 1 << 4,
     End = 1 << 31,
 }
+
+const SCALER_DISPLIST0: *mut u32 = 0x3F400020 as *mut u32;
+const SCALER_DISPLIST1: *mut u32 = 0x3F400024 as *mut u32;
+const SCALER_DISPLIST2: *mut u32 = 0x3F400028 as *mut u32;
 
 /// DisplayList is 16KiB in size.
 type DisplayListMem = [u32; 4096];
@@ -35,6 +41,7 @@ impl DisplayList {
         }
 
         self.write_word(Control::End as u32);
+        self.finish();
     }
 
     pub fn write_plane(&mut self, plane: &Plane) {
@@ -53,7 +60,7 @@ impl DisplayList {
         self.write_word(pos2);
 
         self.write_word(0xDEADBEEF);
-        self.write_word((plane as *const Plane) as u32);
+        self.write_word((plane.framebuffer.as_ptr()) as u32);
         self.write_word(0xDEADBEEF);
         self.write_word(plane.pitch as u32);
     }
@@ -63,5 +70,9 @@ impl DisplayList {
             (*self.mem)[self.offset] = word;
         }
         self.offset += 1;
+    }
+
+    fn finish(&mut self) {
+        unsafe { *SCALER_DISPLIST1 = 0 }
     }
 }

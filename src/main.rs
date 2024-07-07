@@ -22,18 +22,11 @@ mod print;
 mod synchronization;
 mod time;
 
-use alloc::{
-    format,
-    string::{String, ToString},
-    vec::Vec,
-};
+use alloc::format;
 use bsp::memory::initialize_heap;
 use core::time::Duration;
-use embedded_sdmmc::{
-    sdcard::{EMMCController, SdResult},
-    time::DummyTimesource,
-    BlockDevice, Directory, Mode, RawDirectory, TimeSource, VolumeManager,
-};
+use embedded_sdmmc::{sdcard::EMMCController, time::DummyTimesource, Mode, VolumeManager};
+use fb_trait::FrameBufferInterface;
 use hvs::{Hvs, Plane};
 
 use crate::mailbox::{max_clock_speed, set_clock_speed};
