@@ -1,14 +1,10 @@
 use crate::mailbox::{SCREEN_HEIGHT, SCREEN_WIDTH};
-use alloc::vec::Vec;
 use noto_sans_mono_bitmap::{get_raster, get_raster_width, FontWeight, RasterHeight};
 
 const LETTER_FONT_WEIGHT: FontWeight = FontWeight::Regular;
 const LETTER_FONT_HEIGHT: RasterHeight = RasterHeight::Size16;
 pub const LETTER_WIDTH: usize = get_raster_width(LETTER_FONT_WEIGHT, LETTER_FONT_HEIGHT);
-const BOOT_IMAGE: &[u8] = include_bytes!("CogWare4802.bmp");
 const BOOT_IMAGE_QOI: &[u8] = include_bytes!("CogWare.qoi");
-use embedded_graphics::{pixelcolor::Rgb888, prelude::*};
-use tinybmp::Bmp;
 
 pub trait FrameBufferInterface {
     fn draw_rect_fill(&mut self, point: &Coordinates, width: u32, height: u32, color: Color) {
@@ -73,33 +69,14 @@ pub trait FrameBufferInterface {
         self.raw_buffer()[width * y_usize + x_usize] = color.rgb();
     }
 
-    fn display_boot_image(
-        &mut self,
-        // top_left: &Coordinates,
-        // width: u32,
-        // height: u32,
-    ) {
-        // let bmp = Bmp::<Rgb888>::from_slice(BOOT_IMAGE).unwrap();
-        let fb_width = self.width();
-
-        let (header, decoded) = qoi::decode_to_vec(BOOT_IMAGE_QOI).unwrap();
-        let img_width = header.width;
+    fn display_boot_image(&mut self) {
+        let (_header, decoded) = qoi::decode_to_vec(BOOT_IMAGE_QOI).unwrap();
 
         decoded
             .chunks(4)
             .map(|p| u32::from_be_bytes([p[3], p[2], p[1], p[0]]))
             .enumerate()
             .for_each(|(i, p)| self.raw_buffer()[i] = p);
-
-        // for Pixel(position, color) in bmp.pixels() {
-        //     let x: usize = position.x.clamp(0, i32::MAX) as _;
-        //     let y: usize = position.y.clamp(0, i32::MAX) as _;
-        //     let index = fb_width * y + x;
-        //     let pixel: u32 = (color.b() as u32) << 16 | (color.g() as u32) << 8 | color.r() as u32;
-        //     // let pos: usize = y * width + x;
-        //     // let (x, y) = (x + top_left.x_usize(), y + top_left.y_usize());
-        //     self.raw_buffer()[index] = pixel;
-        // }
     }
 
     fn display_image(&mut self, top_left: &Coordinates, image: &[u32], width: u32, height: u32) {

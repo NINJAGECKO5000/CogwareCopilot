@@ -61,10 +61,6 @@
 //
 // ****************************************************************************
 
-#[cfg(test)]
-#[macro_use]
-extern crate hex_literal;
-
 #[macro_use]
 mod structure;
 
@@ -74,7 +70,6 @@ pub mod filesystem;
 pub mod sdcard;
 pub mod time;
 
-use bcm2837_hal as hal;
 use filesystem::SearchId;
 
 #[doc(inline)]

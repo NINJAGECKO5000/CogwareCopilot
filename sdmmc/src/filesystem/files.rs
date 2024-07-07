@@ -1,3 +1,9 @@
+extern crate alloc;
+use alloc::{
+    string::{String, ToString},
+    vec::Vec,
+};
+
 use crate::{
     filesystem::{ClusterId, DirEntry, SearchId},
     Error, RawVolume, VolumeManager,
@@ -76,6 +82,25 @@ where
     /// Returns how many bytes were read, or an error.
     pub fn read(&mut self, buffer: &mut [u8]) -> Result<usize, crate::Error<D::Error>> {
         self.volume_mgr.read(self.raw_file, buffer)
+    }
+
+    /// Read raw bytes from a file to a `Vec<u8>`.
+    ///
+    /// Returns the read bytes or an error.
+    pub fn read_to_vec(&mut self) -> Result<Vec<u8>, crate::Error<D::Error>> {
+        let mut buf = Vec::with_capacity(self.length() as _);
+        self.volume_mgr.read(self.raw_file, &mut buf)?;
+        Ok(buf)
+    }
+
+    /// Read a file to a string.
+    ///
+    /// Returns a `String` converted from raw bytes using `String::from_utf8_lossy()` or an error.
+    pub fn read_to_string(&mut self) -> Result<String, crate::Error<D::Error>> {
+        let mut buf = Vec::with_capacity(self.length() as _);
+        self.volume_mgr.read(self.raw_file, &mut buf)?;
+
+        Ok(String::from_utf8_lossy(&buf).to_string())
     }
 
     /// Write to the file
