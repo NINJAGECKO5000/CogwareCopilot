@@ -73,6 +73,13 @@ unsafe fn kernel_init() -> ! {
         hvs.add_plane(Plane::green_half_alpha());
         hvs.draw();
 
+        timer.delay_ms(1000);
+        hvs.add_plane(Plane::from_qoi(header, image));
+        hvs.draw();
+
+        timer.delay_ms(1000);
+        info!("SUGMA");
+
         // loop {
         //     timer.delay_ns(500_000_000);
         //     hvs.reset();

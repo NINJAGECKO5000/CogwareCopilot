@@ -1,6 +1,6 @@
 use alloc::vec;
 use alloc::vec::Vec;
-
+use crate::info;
 #[repr(C)]
 #[derive(Clone)]
 pub struct Plane {
@@ -20,10 +20,14 @@ impl Plane {
             qoi::Channels::Rgb => PixelFormat::Rgb888,
             qoi::Channels::Rgba => PixelFormat::Rgba8888,
         };
-
+        let img_pitch = match header.channels {
+            qoi::Channels::Rgb => header.width * 3,
+            qoi::Channels::Rgba => header.width * 4,
+        };
+        info!("IMAGE PITCH: {:?}", img_pitch);
         let framebuffer = image
             .chunks(4)
-            .map(|p| u32::from_be_bytes([p[0], p[1], p[2], p[3]]))
+            .map(|p| u32::from_be_bytes([p[3], p[2], p[1], p[0]]))
             .collect::<Vec<_>>();
 
         Plane {
@@ -33,9 +37,10 @@ impl Plane {
             start_y: 0,
             width: 480,
             height: 480,
-            pitch: 32,
+            pitch: img_pitch as u16,
             framebuffer,
         }
+        
     }
 
     pub fn white() -> Plane {
