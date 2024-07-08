@@ -1,4 +1,8 @@
+use core::ptr::addr_of;
+
 use alloc::vec::Vec;
+
+use crate::info;
 
 use super::Plane;
 
@@ -60,7 +64,11 @@ impl DisplayList {
         self.write_word(pos2);
 
         self.write_word(0xDEADBEEF);
-        self.write_word((plane.framebuffer.as_ptr()) as u32);
+
+        let fb_ptr = plane.framebuffer.as_ptr();
+        info!("fb_ptr: {:08x}", fb_ptr as u32);
+        self.write_word((fb_ptr as u32) & 0x3FFFFFFF);
+
         self.write_word(0xDEADBEEF);
         self.write_word(plane.pitch as u32);
     }
@@ -73,6 +81,7 @@ impl DisplayList {
     }
 
     fn finish(&mut self) {
+        self.offset = 0;
         unsafe { *SCALER_DISPLIST1 = 0 }
     }
 }

@@ -22,7 +22,8 @@ mod print;
 mod synchronization;
 mod time;
 
-use alloc::format;
+use alloc::{format, vec::Vec};
+use bcm2837_hal::{delay::Timer, pac::Peripherals, DelayNs};
 use bsp::memory::initialize_heap;
 use core::time::Duration;
 use embedded_sdmmc::{sdcard::EMMCController, time::DummyTimesource, Mode, VolumeManager};
@@ -54,11 +55,31 @@ unsafe fn kernel_init() -> ! {
         info!("kernel_init");
         let max_clock_speed = max_clock_speed();
         set_clock_speed(max_clock_speed.unwrap());
-        let mut hvs = Hvs::new();
+
+        info!("initializing hvs");
+        let mut timer = Timer::new();
         let (header, image) =
             qoi::decode_to_vec(BOOT_IMAGE_QOI).expect("Failed to decode boot image (wtf?)");
-        hvs.add_plane(Plane::from_qoi(header, image));
+
+        let mut hvs = Hvs::new();
+        // this doesn't work
+        // why
+        // hvs.add_plane(Plane::from_qoi(header, image));
+        hvs.add_plane(Plane::white());
         hvs.draw();
+
+        timer.delay_ms(1000);
+
+        hvs.add_plane(Plane::green_half_alpha());
+        hvs.draw();
+
+        // loop {
+        //     timer.delay_ns(500_000_000);
+        //     hvs.reset();
+        //     hvs.add_plane(Plane::from_qoi(header, image.clone()));
+        //     hvs.draw();
+        //     timer.delay_ns(500_000_000);
+        // }
         // let mut fb = mailbox::lfb_init(0).expect("Failed to init framebuffer");
         // fb.display_boot_image();
         // let u = u.assume_init();

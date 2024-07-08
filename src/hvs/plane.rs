@@ -1,5 +1,8 @@
+use alloc::vec;
 use alloc::vec::Vec;
 
+#[repr(C)]
+#[derive(Clone)]
 pub struct Plane {
     pub(super) format: PixelFormat,
     pub(super) order: PixelOrder,
@@ -8,35 +11,60 @@ pub struct Plane {
     pub(super) width: u16,
     pub(super) height: u16,
     pub(super) pitch: u16,
-    pub(super) framebuffer: Vec<u8>,
+    pub(super) framebuffer: Vec<u32>,
 }
 
 impl Plane {
-    pub fn new(
-        format: PixelFormat,
-        order: PixelOrder,
-        width: u16,
-        height: u16,
-        framebuffer: Vec<u8>,
-    ) -> Plane {
-        todo!()
-    }
-
     pub fn from_qoi(header: qoi::Header, image: Vec<u8>) -> Plane {
         let format = match header.channels {
             qoi::Channels::Rgb => PixelFormat::Rgb888,
             qoi::Channels::Rgba => PixelFormat::Rgba8888,
         };
 
+        let framebuffer = image
+            .chunks(4)
+            .map(|p| u32::from_be_bytes([p[0], p[1], p[2], p[3]]))
+            .collect::<Vec<_>>();
+
         Plane {
             format,
             order: PixelOrder::ARGB,
             start_x: 0,
             start_y: 0,
-            width: header.width as _,
-            height: header.height as _,
-            pitch: format.pitch(),
-            framebuffer: image,
+            width: 480,
+            height: 480,
+            pitch: 32,
+            framebuffer,
+        }
+    }
+
+    pub fn white() -> Plane {
+        let framebuffer = vec![0xFFFFFFFF; 480 * 480];
+
+        Plane {
+            format: PixelFormat::Rgba8888,
+            order: PixelOrder::ARGB,
+            start_x: 0,
+            start_y: 0,
+            width: 480,
+            height: 480,
+            pitch: 32,
+            framebuffer,
+        }
+    }
+
+    pub fn green_half_alpha() -> Plane {
+        let framebuffer = vec![0x3300FF00; 480 * 480];
+
+        Plane {
+            format: PixelFormat::Rgba8888,
+            order: PixelOrder::ARGB,
+            start_x: 0,
+            start_y: 0,
+            width: 480,
+            height: 480,
+            pitch: 32,
+            framebuffer,
         }
     }
 
@@ -82,7 +110,7 @@ impl Plane {
         plane
     }
 
-    pub fn set_framebuffer(self, framebuffer: Vec<u8>) -> Plane {
+    pub fn set_framebuffer(self, framebuffer: Vec<u32>) -> Plane {
         let mut plane = self;
         plane.framebuffer = framebuffer;
         plane
@@ -110,7 +138,7 @@ pub enum PixelFormat {
 }
 
 impl PixelFormat {
-    fn pitch(&self) -> u16 {
+    fn depth(&self) -> u16 {
         match self {
             Self::Rgb332 => 8,
             Self::Rgba4444 | Self::Rgb555 | Self::Rgba5551 | Self::Rgb565 => 16,

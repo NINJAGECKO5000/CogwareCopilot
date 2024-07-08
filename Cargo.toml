@@ -26,7 +26,7 @@ bench = false
 
 # Optional dependencies
 tock-registers = { version = "0.8.x", default-features = false, features = ["register_types"], optional = true }
-bcm2837-hal = { path = "../bcm2837-hal", features = ["critical-section-impl"] }
+bcm2837-hal = { path = "bcm2837-hal", features = ["critical-section-impl"] }
 embedded-sdmmc = { path = "sdmmc" }
 cortex-a = "8.1.1"
 noto-sans-mono-bitmap = "0.3.0"

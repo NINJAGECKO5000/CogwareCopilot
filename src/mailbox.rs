@@ -218,6 +218,7 @@ pub fn lfb_init<'a: 'static>(tentative: usize) -> Option<FrameBuffer> {
     return if res && message.0[28] != 0 {
         // convert GPU address to ARM address
         let fb_ptr_raw = (message.0[28] & 0x3FFFFFFF) as usize;
+        info!("fb_ptr_raw: {}", fb_ptr_raw);
 
         // get actual physical width
         let width = message.0[5];

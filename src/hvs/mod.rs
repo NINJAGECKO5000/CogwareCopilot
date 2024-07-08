@@ -4,7 +4,6 @@ mod plane;
 use core::mem;
 
 use alloc::vec::Vec;
-use bcm2837_hal::pac::VCMAILBOX;
 use displaylist::DisplayList;
 pub use plane::*;
 
@@ -32,7 +31,11 @@ const FB_VIRTUAL_OFFSET_TAG: u32 = 0x48009;
 const FB_VIRTUAL_OFFSET_X: u32 = 0;
 const FB_VIRTUAL_OFFSET_Y: u32 = 0;
 
-pub struct FrameBufferData {}
+pub struct FrameBufferData {
+    width: u16,
+    height: u16,
+    pitch: u16,
+}
 
 #[derive(Default)]
 pub struct Hvs {
@@ -41,11 +44,60 @@ pub struct Hvs {
 }
 
 impl Hvs {
-    pub fn new(mailbox: &VCMAILBOX) -> Hvs {
+    pub fn new() -> Hvs {
         Hvs::default()
     }
 
-    fn init() {}
+    pub fn reset(&mut self) {
+        self.planes.clear();
+    }
+
+    // fn init() {
+    //     let msg = lfb_message();
+    //
+    //     info!("send msg: {:?}", msg);
+    //     while mailbox.status0().read().full().bit() {
+    //         core::hint::spin_loop();
+    //     }
+    //
+    //     let raw_ptr = msg.as_ptr();
+    //     unsafe {
+    //         mailbox.write().write_with_zero(|w| w.bits(raw_ptr as u32));
+    //     }
+    //
+    //     loop {
+    //         while mailbox.status0().read().empty().bit() {
+    //             core::hint::spin_loop();
+    //         }
+    //
+    //         if mailbox.read().read().bits() == raw_ptr as u32 {
+    //             info!("recv msg: {:?}", msg);
+    //             break;
+    //         }
+    //     }
+    //
+    //     // convert GPU address to ARM address
+    //     let fb_ptr = (msg[28] & 0x3FFFFFFF) as usize;
+    //
+    //     // get actual physical width
+    //     let width = msg[5];
+    //     // get actual physical height
+    //     let height = msg[6];
+    //     // get number of bytes per line:
+    //     let pitch = msg[33];
+    //     // get the pixel depth TODO: is this correct? Missin from: https://github.com/bztsrc/raspi3-tutorial/blob/master/09_framebuffer/lfb.c
+    //     let depth = msg[20];
+    //     // get the actual channel order. brg = 0, rgb > 0
+    //     let is_rgb = msg[24] != 0;
+    //
+    //     let fb_ptr = unsafe { &mut *(fb_ptr as *const u32 as *mut u32) };
+    //     let fb: &mut [u32] = unsafe {
+    //         core::slice::from_raw_parts_mut(fb_ptr, TOTAL_FB_BUFFER_LEN)
+    //     };
+    //
+    //     Hvs::default()
+    //
+    // }
 
     /// Add a new plane to the display list.
     ///
@@ -107,7 +159,7 @@ const fn lfb_message() -> [u32; LFB_MESSAGE_SIZE] {
     msg[32] = 4;
     msg[33] = 0; // FrameBufferInfo.pitch
 
-    msg[34] = LAST_TAG;
+    msg[34] = 0;
 
-    todo!()
+    msg
 }
