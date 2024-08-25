@@ -57,6 +57,7 @@ unsafe fn kernel_init() -> ! {
         set_clock_speed(max_clock_speed.unwrap());
 
         info!("initializing hvs");
+        mailbox::lfb_init(0).expect("Failed to init framebuffer");
         let mut timer = Timer::new();
         let (header, image) =
             qoi::decode_to_vec(BOOT_IMAGE_QOI).expect("Failed to decode boot image (wtf?)");
