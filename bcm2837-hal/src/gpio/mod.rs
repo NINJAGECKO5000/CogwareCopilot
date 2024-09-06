@@ -1,3 +1,4 @@
+use embedded_hal::digital::{ErrorKind, ErrorType, OutputPin};
 use paste::paste;
 
 pub mod pin;
@@ -60,7 +61,25 @@ pub struct Pin {
     pin_num: u8,
     mode: PinMode,
 }
+/*impl ErrorType for OutputPin {
+    type Error = ErrorKind;
+}
+impl OutputPin for Pin {
+    fn set_low(&mut self) -> Result<(), Self::Error> {
+        todo!()
+    }
 
+    fn set_high(&mut self) -> Result<(), Self::Error> {
+        todo!()
+    }
+
+    fn set_state(&mut self, state: embedded_hal::digital::PinState) -> Result<(), Self::Error> {
+        match state {
+            embedded_hal::digital::PinState::Low => self.set_low(),
+            embedded_hal::digital::PinState::High => self.set_high(),
+        }
+    }
+}*/
 impl Pin {
     pub fn new(pin_num: u8, mode: PinMode) -> Self {
         Self { pin_num, mode }

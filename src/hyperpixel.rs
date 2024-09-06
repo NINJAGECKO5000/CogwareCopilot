@@ -24,11 +24,11 @@ impl<'a> HyperPixel<'a> {
     }
 
     pub fn init(mut self) {
-        self.hal_gpio_init();
+        self.set_gpio_mode();
         self.init_display();
     }
 
-    pub fn hal_gpio_init(&self) {
+    pub fn set_gpio_mode(&self) {
         self.gpio.pins[10..=11].iter().for_each(|p| {
             p.set_mode(PinMode::Output);
         });

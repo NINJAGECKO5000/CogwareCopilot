@@ -16,21 +16,28 @@ mod driver;
 mod fb_trait;
 mod framebuffer;
 mod hvs;
+mod hyperpixel;
 mod mailbox;
 mod panic_wait;
 mod print;
 mod synchronization;
 mod time;
 
+use crate::mailbox::{max_clock_speed, set_clock_speed};
 use alloc::{format, vec::Vec};
-use bcm2837_hal::{delay::Timer, pac::Peripherals, DelayNs};
+use bcm2837_hal::*;
 use bsp::memory::initialize_heap;
 use core::time::Duration;
+use delay::Timer;
+use embedded_hal::spi::*;
 use embedded_sdmmc::{sdcard::EMMCController, time::DummyTimesource, Mode, VolumeManager};
 use fb_trait::FrameBufferInterface;
+use fugit::RateExtU32;
+use gpio::{pin, GpioExt};
 use hvs::{Hvs, Plane};
-
-use crate::mailbox::{max_clock_speed, set_clock_speed};
+use hyperpixel::HyperPixel;
+use pac::Peripherals;
+use spi::spi::{SPI0Device, SPIZero};
 // use fb_trait::FrameBufferInterface;
 // use framebuffer::FrameBuffer;
 
@@ -57,8 +64,7 @@ unsafe fn kernel_init() -> ! {
         set_clock_speed(max_clock_speed.unwrap());
 
         info!("initializing hvs");
-        let mut timer = Timer::new();
-        let (header, image) =
+        /*let (header, image) =
             qoi::decode_to_vec(BOOT_IMAGE_QOI).expect("Failed to decode boot image (wtf?)");
 
         let mut hvs = Hvs::new();
@@ -86,8 +92,8 @@ unsafe fn kernel_init() -> ! {
         //     hvs.add_plane(Plane::from_qoi(header, image.clone()));
         //     hvs.draw();
         //     timer.delay_ns(500_000_000);
-        // }
-        // let mut fb = mailbox::lfb_init(0).expect("Failed to init framebuffer");
+        // }*/
+        let mut fb = mailbox::lfb_init(0).expect("Failed to init framebuffer");
         // fb.display_boot_image();
         // let u = u.assume_init();
     }
@@ -98,10 +104,6 @@ unsafe fn kernel_init() -> ! {
 
 /// The main function running after the early init.
 fn kernel_main() -> ! {
-    // use core::mem::MaybeUninit;
-    // static mut HEAP_MEM: [MaybeUninit<u8>; HEAP_SIZE] = [MaybeUninit::uninit(); HEAP_SIZE];
-    // unsafe { HEAP.init(HEAP_MEM.as_ptr() as usize, HEAP_SIZE) }
-
     info!(
         "{} version {}",
         env!("CARGO_PKG_NAME"),
@@ -158,7 +160,24 @@ fn kernel_main() -> ! {
     // Test a failing timer case.
     time::time_manager().spin_for(Duration::from_nanos(1));
 
+    let peripherals = Peripherals::take().expect("failed to get peripherals");
+    let gpio = peripherals.GPIO.split();
+    gpio.pins[9..=11].iter().for_each(|p| {
+        p.set_mode(gpio::PinMode::AF0);
+    });
+
+    // let mut timer = Timer::new();
+    // HyperPixel::new(peripherals.GPIO, &mut timer).set_gpio_mode();
+
+    let mut spi = SPIZero::new(&peripherals.SPI0);
+    spi.init(embedded_hal::spi::MODE_0, 100.kHz());
+    info!("in theory SPI inited");
+
     loop {
+        let data_to_send: u8 = 0x69;
+        info!("sending data: {}", data_to_send);
+        let res = spi.write(&[data_to_send]);
+        info!("{:?}", res);
         info!("Spinning for 1 second");
         time::time_manager().spin_for(Duration::from_secs(1));
     }
