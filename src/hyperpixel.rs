@@ -24,16 +24,16 @@ impl<'a> HyperPixel<'a> {
     }
 
     pub fn init(mut self) {
-        self.hal_gpio_init();
+        self.set_gpio_mode();
         self.init_display();
     }
 
-    pub fn hal_gpio_init(&self) {
+    pub fn set_gpio_mode(&self) {
         self.gpio.pins[10..=11].iter().for_each(|p| {
             p.set_mode(PinMode::Output);
         });
         self.gpio.pins[18..=19].iter().for_each(|p| {
-            p.set_mode(PinMode::Output).set_high();
+            p.set_mode(PinMode::Output).set_output_high();
         });
 
         self.gpio.pins[0..=9].iter().for_each(|p| {
@@ -49,12 +49,12 @@ impl<'a> HyperPixel<'a> {
 
     #[inline]
     fn set_clock_high(&self) {
-        self.gpio.pins[11].set_high();
+        self.gpio.pins[11].set_output_high();
     }
 
     #[inline]
     fn set_clock_low(&self) {
-        self.gpio.pins[11].set_low();
+        self.gpio.pins[11].set_output_low();
     }
 
     #[inline]
@@ -67,20 +67,20 @@ impl<'a> HyperPixel<'a> {
 
     #[inline]
     fn set_cs_high(&self) {
-        self.gpio.pins[18].set_high();
+        self.gpio.pins[18].set_output_high();
     }
 
     #[inline]
     fn set_cs_low(&self) {
         //thank god for readable commands
-        self.gpio.pins[18].set_low();
+        self.gpio.pins[18].set_output_low();
     }
 
     #[inline]
     fn set_mosi(&self, level: bool) {
         match level {
-            true => self.gpio.pins[10].set_high(),
-            false => self.gpio.pins[10].set_low(),
+            true => self.gpio.pins[10].set_output_high(),
+            false => self.gpio.pins[10].set_output_low(),
         };
     }
 

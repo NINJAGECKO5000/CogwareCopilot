@@ -36,6 +36,7 @@ const FB_VIRTUAL_OFFSET_TAG: u32 = 0x48009;
 const FB_VIRTUAL_OFFSET_X: u32 = 0;
 const FB_VIRTUAL_OFFSET_Y: u32 = 0;
 
+
 // TODO: wrap into registers map lib
 #[repr(C)]
 struct RawMailbox {

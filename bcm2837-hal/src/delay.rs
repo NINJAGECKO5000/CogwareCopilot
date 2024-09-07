@@ -2,6 +2,7 @@ use crate::pac;
 
 use core::time::Duration;
 use embedded_hal::delay::DelayNs;
+use embedded_hal_0_2::blocking::delay::DelayMs;
 
 const PTR: *const pac::systmr::RegisterBlock = pac::SYSTMR::PTR;
 
@@ -32,6 +33,17 @@ impl Timer {
 impl DelayNs for Timer {
     fn delay_ns(&mut self, ns: u32) {
         let target = self.now() + Duration::from_nanos(ns as u64);
+
+        while self.now() <= target {
+            core::hint::spin_loop()
+        }
+    }
+}
+impl<T> DelayMs<T> for Timer 
+    where
+        T: Into<u64>{
+    fn delay_ms(&mut self, ms: T) {
+        let target = self.now() + Duration::from_millis(ms.into());
 
         while self.now() <= target {
             core::hint::spin_loop()

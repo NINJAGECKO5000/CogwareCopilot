@@ -33,6 +33,13 @@ noto-sans-mono-bitmap = "0.3.0"
 embedded-graphics = "0.8.1"
 tinybmp = "0.6.0"
 qoi = { version = "0.4.1", default-features = false, features = ["alloc"] }
+embedded-hal = "1.0.0"
+fugit = "0.3.7"
+mcp2515 = "0.2.2"
+embedded_hal_0_2 = { package = "embedded-hal", version = "0.2.7", features = [
+  "unproven",
+] }
+cogware-can = {path = "CogwareCan"}
 
 # Platform specific dependencies
 [target.'cfg(target_arch = "aarch64")'.dependencies]

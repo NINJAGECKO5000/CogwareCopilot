@@ -1,3 +1,8 @@
+use core::convert::Infallible;
+
+use embedded_hal::digital::{ErrorKind, ErrorType, OutputPin};
+use embedded_hal_0_2::digital::v2::OutputPin as OldHalOutputPin;
+//use embedded_hal_0_2::digital::OutputPin as OldHalOutputPinnonv2;
 use paste::paste;
 
 pub mod pin;
@@ -61,6 +66,88 @@ pub struct Pin {
     mode: PinMode,
 }
 
+impl ErrorType for Pin {
+    type Error = Infallible;
+}
+
+impl OutputPin for Pin {
+    /// Sets pin output level low.
+    ///
+    /// This function is infalliable and is therefore safe to unwrap.
+    fn set_low(&mut self) -> Result<(), Self::Error> {
+        self.set_output_low();
+        Ok(())
+    }
+
+    /// Sets pin output level high.
+    ///
+    /// This function is infalliable and is therefore safe to unwrap.
+    fn set_high(&mut self) -> Result<(), Self::Error> {
+        self.set_output_high();
+        Ok(())
+    }
+}
+/*impl OldHalOutputPinnonv2 for Pin{
+    fn set_low(&mut self) {
+        embedded_hal::digital::OutputPin::set_low(self);
+    }
+
+    fn set_high(&mut self) {
+        embedded_hal::digital::OutputPin::set_high(self);
+    }
+}*/
+
+impl OldHalOutputPin for Pin {
+
+    type Error = Infallible;
+    /// Sets pin output level low.
+    ///
+    /// This function is infalliable and is therefore safe to unwrap.
+    fn set_low(&mut self) -> Result<(), Self::Error> {
+        embedded_hal::digital::OutputPin::set_low(&mut (*self))
+    }
+
+    /// Sets pin output level high.
+    ///
+    /// This function is infalliable and is therefore safe to unwrap.
+    fn set_high(&mut self) -> Result<(), Self::Error> {
+        embedded_hal::digital::OutputPin::set_high(&mut (*self))
+    }
+    
+    fn set_state(&mut self, state: embedded_hal_0_2::digital::v2::PinState) -> Result<(), Self::Error> {
+        match state {
+            embedded_hal_0_2::digital::v2::PinState::Low => embedded_hal::digital::OutputPin::set_low(&mut (*self)),
+            embedded_hal_0_2::digital::v2::PinState::High => embedded_hal::digital::OutputPin::set_high(&mut (*self)),
+        }?;
+        Ok(())
+    }
+}
+impl OldHalOutputPin for &mut Pin {
+
+    type Error = Infallible;
+    /// Sets pin output level low.
+    ///
+    /// This function is infalliable and is therefore safe to unwrap.
+    fn set_low(&mut self) -> Result<(), Self::Error> {
+        embedded_hal::digital::OutputPin::set_low(&mut (*self))
+    }
+
+    /// Sets pin output level high.
+    ///
+    /// This function is infalliable and is therefore safe to unwrap.
+    fn set_high(&mut self) -> Result<(), Self::Error> {
+        embedded_hal::digital::OutputPin::set_high(&mut (*self))
+    }
+    
+    fn set_state(&mut self, state: embedded_hal_0_2::digital::v2::PinState) -> Result<(), Self::Error> {
+        match state {
+            embedded_hal_0_2::digital::v2::PinState::Low => embedded_hal::digital::OutputPin::set_low(&mut (*self)),
+            embedded_hal_0_2::digital::v2::PinState::High => embedded_hal::digital::OutputPin::set_high(&mut (*self)),
+        }?;
+        Ok(())
+    }
+}
+
 impl Pin {
     pub fn new(pin_num: u8, mode: PinMode) -> Self {
         Self { pin_num, mode }
@@ -92,7 +179,7 @@ impl Pin {
         self
     }
 
-    pub fn set_high(&self) -> &Pin {
+    pub fn set_output_high(&self) -> &Pin {
         let reg = self.set_ptr();
         let bank = self.pin_num % 32;
 
@@ -103,7 +190,7 @@ impl Pin {
         self
     }
 
-    pub fn set_low(&self) -> &Pin {
+    pub fn set_output_low(&self) -> &Pin {
         let reg = self.clr_ptr();
         let bank = self.pin_num % 32;
 

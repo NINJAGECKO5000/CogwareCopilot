@@ -9,5 +9,6 @@ pub mod delay;
 pub mod gpio;
 pub mod interrupt;
 pub(crate) mod macros;
+pub mod spi;
 
 pub use embedded_hal::delay::DelayNs;
