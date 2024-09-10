@@ -1,6 +1,6 @@
 [package]
 name = "mingo"
-version = "0.7.0"
+version = "0.8.0"
 authors = ["Andre Richter <andre.o.richter@gmail.com>"]
 edition = "2021"
 
@@ -8,15 +8,13 @@ edition = "2021"
 lto = true
 
 [features]
-default = ["bsp_rpi3"]
+default = []
 bsp_rpi3 = ["tock-registers"]
 bsp_rpi4 = ["tock-registers"]
 
 [[bin]]
 name = "kernel"
 path = "src/main.rs"
-test = false
-bench = false
 
 ##--------------------------------------------------------------------------------------------------
 ## Dependencies
@@ -26,20 +24,6 @@ bench = false
 
 # Optional dependencies
 tock-registers = { version = "0.8.x", default-features = false, features = ["register_types"], optional = true }
-bcm2837-hal = { path = "bcm2837-hal", features = ["critical-section-impl"] }
-embedded-sdmmc = { path = "sdmmc" }
-cortex-a = "8.1.1"
-noto-sans-mono-bitmap = "0.3.0"
-embedded-graphics = "0.8.1"
-tinybmp = "0.6.0"
-qoi = { version = "0.4.1", default-features = false, features = ["alloc"] }
-embedded-hal = "1.0.0"
-fugit = "0.3.7"
-mcp2515 = "0.2.2"
-embedded_hal_0_2 = { package = "embedded-hal", version = "0.2.7", features = [
-  "unproven",
-] }
-cogware-can = {path = "CogwareCan"}
 
 # Platform specific dependencies
 [target.'cfg(target_arch = "aarch64")'.dependencies]

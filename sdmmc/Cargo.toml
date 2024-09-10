@@ -1,0 +1,33 @@
+[package]
+authors = ["Jonathan 'theJPster' Pallant <github@thejpster.org.uk>", "Rust Embedded Community Developers"]
+categories = ["embedded", "no-std"]
+description = "A basic SD/MMC driver for Embedded Rust."
+edition = "2021"
+keywords = ["sdcard", "mmc", "embedded", "fat32"]
+license = "MIT OR Apache-2.0"
+name = "embedded-sdmmc"
+readme = "README.md"
+repository = "https://github.com/rust-embedded-community/embedded-sdmmc-rs"
+version = "0.7.0"
+
+[dependencies]
+bcm2837-lpa = "0.4.0"
+byteorder = {version = "1", default-features = false}
+defmt = {version = "0.3", optional = true}
+embedded-hal = "1.0.0"
+heapless = "^0.8"
+log = {version = "0.4", default-features = false, optional = true }
+tock-registers = { version = "0.8.x", default-features = false, features = ["register_types"]}
+bcm2837-hal = { path = "../bcm2837-hal"}
+[dev-dependencies]
+chrono = "0.4"
+embedded-hal-bus = "0.1.0"
+env_logger = "0.10.0"
+flate2 = "1.0"
+hex-literal = "0.4.1"
+sha2 = "0.10"
+
+[features]
+default = ["log"]
+defmt-log = ["dep:defmt"]
+log = ["dep:log"]

@@ -2,9 +2,9 @@
 ##
 ## Copyright (c) 2018-2023 Andre Richter <andre.o.richter@gmail.com>
 
-include common/docker.mk
-include common/format.mk
-include common/operating_system.mk
+include ../common/docker.mk
+include ../common/format.mk
+include ../common/operating_system.mk
 
 ##--------------------------------------------------------------------------------------------------
 ## Optional, user-provided configuration values
@@ -74,8 +74,8 @@ RUSTFLAGS = $(RUSTC_MISC_ARGS)                   \
     -C link-arg=--script=$(KERNEL_LINKER_SCRIPT)
 
 RUSTFLAGS_PEDANTIC = $(RUSTFLAGS) \
-    ##-D warnings                   \
-    ##-D missing_docs
+    -D warnings                   \
+    -D missing_docs
 
 FEATURES      = --features bsp_$(BSP)
 COMPILER_ARGS = --target=$(TARGET) \
@@ -90,15 +90,15 @@ OBJCOPY_CMD = rust-objcopy \
     -O binary
 
 EXEC_QEMU          = $(QEMU_BINARY) -M $(QEMU_MACHINE_TYPE)
-EXEC_TEST_DISPATCH = ruby common/tests/dispatch.rb
-EXEC_MINIPUSH      = ruby common/serial/minipush.rb
+EXEC_TEST_DISPATCH = ruby ../common/tests/dispatch.rb
+EXEC_MINIPUSH      = ruby ../common/serial/minipush.rb
 
 ##------------------------------------------------------------------------------
 ## Dockerization
 ##------------------------------------------------------------------------------
 DOCKER_CMD            = docker run -t --rm -v $(shell pwd):/work/tutorial -w /work/tutorial
 DOCKER_CMD_INTERACT   = $(DOCKER_CMD) -i
-DOCKER_ARG_DIR_COMMON = -v $(shell pwd)/common:/work/common
+DOCKER_ARG_DIR_COMMON = -v $(shell pwd)/../common:/work/common
 DOCKER_ARG_DEV        = --privileged -v /dev:/dev
 
 # DOCKER_IMAGE defined in include file (see top of this file).

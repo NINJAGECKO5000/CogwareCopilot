@@ -1,0 +1,21 @@
+[package]
+name = "bcm2837-hal"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bcm2837-lpa = { version = "0.4.0", features = ["critical-section"] }
+critical-section = "1.1.2"
+embedded-hal = "1.0.0"
+fugit = "0.3.7"
+interrupts = "0.1.5"
+log = "0.4.21"
+nb = "1.1.0"
+paste = "1.0.15"
+embedded_hal_0_2 = { package = "embedded-hal", version = "0.2.7", features = [
+  "unproven",
+] }
+
+[features]
+default = ["critical-section-impl"]
+critical-section-impl = ["critical-section/restore-state-none"]
