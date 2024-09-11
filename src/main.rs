@@ -1,5 +1,5 @@
 #![allow(clippy::upper_case_acronyms)]
-#![feature(asm_const)]
+// #![feature(asm_const)]
 #![feature(const_option)]
 #![feature(format_args_nl)]
 #![feature(trait_alias)]
@@ -23,30 +23,25 @@ mod print;
 mod synchronization;
 mod time;
 mod v3d;
-use alloc::{string::String, vec};
+use alloc::string::String;
 
 use crate::mailbox::{max_clock_speed, set_clock_speed};
 use alloc::{format, vec::Vec};
 use bcm2837_hal::*;
 use bsp::memory::initialize_heap;
-use cogware_can::{cli_wri, Gauge, *};
+use cogware_can::{cli_wri, *};
 use core::time::Duration;
 use delay::Timer;
-use embedded_hal::spi::*;
-use embedded_hal_0_2::{
-    can::{Frame, Id, StandardId},
-    digital::v2::OutputPin,
-    prelude::{_embedded_hal_blocking_delay_DelayMs, _embedded_hal_blocking_spi_Transfer},
-};
+use embedded_hal_0_2::can::{Frame, Id, StandardId};
 use embedded_sdmmc::{sdcard::EMMCController, time::DummyTimesource, Mode, VolumeManager};
 use fb_trait::FrameBufferInterface;
 use fugit::RateExtU32;
-use gpio::{pin, GpioExt};
-use hvs::{Hvs, Plane};
-use hyperpixel::HyperPixel;
+use gpio::GpioExt;
+// use hvs::{Hvs, Plane};
+// use hyperpixel::HyperPixel;
 use mcp2515::{error::Error, frame::CanFrame, regs::OpMode, CanSpeed, McpSpeed, MCP2515};
-use pac::{bsc0::a::W, Peripherals};
-use spi::spi::{SPI0Device, SPIZero};
+use pac::Peripherals;
+use spi::spi::SPIZero;
 // use fb_trait::FrameBufferInterface;
 // use framebuffer::FrameBuffer;
 static CONFIGGAUGES: [u8; 9] = [0x20, 0x24, 0x25, 0x26, 0x28, 0x29, 0x2D, 0x35, 0x70];
