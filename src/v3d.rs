@@ -39,14 +39,11 @@ impl core::error::Error for V3DError {}
 pub fn init() -> Result<(), V3DError> {
     let message = max_gpu_clock_rate_message();
     send_message_sync(mailbox::Channel::PROP, &message).map_err(|_| V3DError::MaxClockRequest)?;
-
-    let max_speed_hz = message[6];
-    let ratecalc: f64 = max_speed_hz.into();
-    info!(
-        "Max clock speed for GPU CORE is : {:?}Ghz",
-        ratecalc / 1_000_000_000.0
-    );
-
+    let message = message.clone();
+    let rate = &message[6];
+    let rate2 = *rate;
+    info!("R: {:?}", rate);
+    info!("Max clock speed for GPU CORE is: {:?}Mhz", rate2 as f64 / 1_000_000.0);
     let mut ret = [0u32; 13];
     ret[0] = (13 * mem::size_of::<u32>()) as u32;
     ret[1] = 0;
@@ -54,7 +51,7 @@ pub fn init() -> Result<(), V3DError> {
     ret[3] = 8;
     ret[4] = 8;
     ret[5] = 5; //channel
-    ret[6] = max_speed_hz; //V3D Clock rate
+    ret[6] = rate2; //V3D Clock rate
     ret[2] = 0x00030012; // enable QPU
     ret[3] = 4;
     ret[4] = 4;
@@ -64,21 +61,17 @@ pub fn init() -> Result<(), V3DError> {
 
     let transfer = mailbox::Message::new(ret);
     mailbox::send_message_sync(mailbox::Channel::PROP, &transfer).map_err(|_| V3DError::Init)?;
-    info!("message: {:?}", transfer);
     check_v3d_ident0()?;
     info!("We Passed V3D Check!");
 
     let message2 = get_current_gpu_clock_rate_message();
     send_message_sync(mailbox::Channel::PROP, &message2)
         .map_err(|_| V3DError::CurrentClockRequest)?;
-
-    let rate = message2[6];
-    let ratecalc: f64 = rate.into();
-
-    info!(
-        "Rate Readback to check ARM CORE is: {:?}Ghz",
-        ratecalc / 1_000_000_000.0
-    );
+    let message2 = message2.clone();
+    let rate = &message2[6];
+    let rate2 = *rate;
+    info!("R: {:?}", rate);
+    info!("Rate Readback to check GPU CORE is: {:?}Mhz", rate2 as f64 / 1_000_000.0);
 
     Ok(())
 }
@@ -93,10 +86,8 @@ pub fn check_v3d_ident0() -> Result<(), V3DError> {
     // unsafe {
     // Get the pointer to the V3D registers
     let v3d_ptr = get_v3d_ptr();
-    info!("V3DPTR = {:?}", v3d_ptr);
     // Read the value at V3D_IDENT0 offset using volatile read
     let v3d_ident0_value = unsafe { core::ptr::read_volatile(v3d_ptr.add(V3D_IDENT0 / 4)) }; // Divide by 4 because u32 is 4 bytes
-    info!("V3D IDENT0 VAL {:?}", v3d_ident0_value);
     // Check if the value matches 0x02443356
     if v3d_ident0_value != 0x02443356 {
         return Err(V3DError::Check);

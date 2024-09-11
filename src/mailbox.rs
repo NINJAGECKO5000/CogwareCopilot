@@ -13,6 +13,7 @@ const VIDEOCORE_MBOX_BASE: u32 = 0x3F00B880;
 
 use alloc::fmt::format;
 use alloc::string::String;
+use bcm2837_hal::interrupt::LicmaHandler;
 use tock_registers::{
     interfaces::{Readable, Writeable},
     registers::{ReadOnly, WriteOnly},
@@ -314,29 +315,21 @@ pub fn lfb_init<'a: 'static>() -> Result<FrameBuffer, MailboxError> {
 
 pub fn set_clock_speed(new_clock: u32) -> Result<(), MailboxError> {
     let message = get_set_clock_rate_message(new_clock);
-    // info!(
-    //    "Sending message to channel PROP to set clock speed: {:?}",
-    //    message
-    //);
     send_message_sync(Channel::PROP, &message).map_err(|_| MailboxError::SetClockSpeed)?;
-    //  info!("message: {:?}", message);
-    let rate = message[6];
-    let ratecalc: f64 = rate.into();
-    info!(
-        "New rate for ARM CORE is: {:?}Ghz",
-        ratecalc / 1_000_000_000.0
-    );
+    let message = message.clone();
+    let rate = &message[6];
+    let rate2 = *rate;
+    info!("R: {:?}", rate);
+    info!("New rate for ARM CORE is: {:?}Ghz", rate2 as f64 / 1_000_000_000.0);
+    
     let message2 = get_current_clock_rate_message();
 
     send_message_sync(Channel::PROP, &message2).map_err(|_| MailboxError::SetClockSpeed)?;
-    info!("message: {:?}", message2);
-    let rate = message2[6];
-    let ratecalc: f64 = rate.into();
-
-    info!(
-        "Rate Readback to check ARM CORE is: {:?}Ghz",
-        ratecalc / 1_000_000_000.0
-    );
+    let message2 = message2.clone();
+    let rate = &message2[6];
+    let rate2 = *rate;
+    info!("R: {:?}", rate);
+    info!("Rate Readback to check ARM CORE is: {:?}Ghz", rate2 as f64 / 1_000_000_000.0);
     Ok(())
 }
 
@@ -361,38 +354,25 @@ pub fn test_set_virtual_framebuffer_offset(offset: u32) -> Result<(), MailboxErr
     );
     Ok(())
 }
-
 pub fn max_clock_speed() -> Result<u32, MailboxError> {
-    // command 0x00030004 ARM clock ID = 0x3
-    // BCM2835_MAILBOX_TAG_GET_MAX_CLOCK_RATE 0x00030004
     let message2 = get_current_clock_rate_message();
-    // info!(
-    //   "Sending message to channel PROP to read clock speed: {:?}",
-    //   message2
-    //);
+
     send_message_sync(Channel::PROP, &message2).map_err(|_| MailboxError::GetMaxSpeed)?;
-
-    info!("message: {:?}", message2);
-    let rate = message2[6];
-    let ratecalc: f64 = rate.into();
-
-    info!(
-        "Current ARM CORE rate is: {:?}Ghz",
-        ratecalc / 1_000_000_000.0
-    );
+    let message2 = message2.clone();
+    let rate = &message2[6];
+    let rate2 = *rate;
+    info!("R: {:?}", rate);
+    info!("Current ARM CORE rate is: {:?}Ghz", rate2 as f64 / 1_000_000_000.0);
 
     let message = max_clock_rate_message();
 
     send_message_sync(Channel::PROP, &message).map_err(|_| MailboxError::GetMaxSpeed)?;
-
-    info!("message: {:?}", message);
-    let max_speed_hz = message[6];
-    let ratecalc: f64 = max_speed_hz.into();
-    info!(
-        "Max clock speed for ARM CORE is : {:?}Ghz",
-        ratecalc / 1_000_000_000.0
-    );
-    Ok(max_speed_hz)
+    let message = message.clone();
+    let rate = &message[6];
+    let rate2 = *rate;
+    info!("R: {:?}", rate);
+    info!("Max clock speed for ARM CORE is: {:?}Ghz", rate2 as f64 / 1_000_000_000.0);
+    Ok(rate2)
 }
 
 const SET_VIRTUAL_FRAMEBUFFER_OFFSET_MESSAGE_SIZE: usize = 8;
@@ -520,7 +500,6 @@ pub fn send_message_sync<const T: usize>(
         while raw_mailbox.is_empty() {
             core::hint::spin_loop();
         }
-
         if raw_mailbox.get_read() == final_addr as u32 {
             return match message.response_status() {
                 ReqResp::Request => Err(MailboxError::SendMessage(String::from(
@@ -574,7 +553,8 @@ fn mailbox_tag_message<const N: usize>(
         while raw_mailbox.is_empty() {
             core::hint::spin_loop();
         }
-
+        LicmaHandler::enable_mailbox();
+        while! LicmaHandler::mailbox_pending(){}
         if raw_mailbox.get_read() == final_addr as u32 {
             return match transfer.response_status() {
                 ReqResp::Request => Err(MailboxError::SendMessage(String::from(

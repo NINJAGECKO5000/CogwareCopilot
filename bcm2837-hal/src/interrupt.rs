@@ -18,11 +18,11 @@ impl LicmaHandler {
         Self.enable_basic().modify(|_, w| w.mailbox().bit(true));
     }
 
-    pub fn disable_mailbox(&self) {
+    pub fn disable_mailbox() {
         Self.disable_basic().modify(|_, w| w.mailbox().bit(true));
     }
 
-    pub fn mailbox_pending(&self) -> bool {
+    pub fn mailbox_pending() -> bool {
         Self.basic_pending().read().mailbox().bit_is_set()
     }
 }
