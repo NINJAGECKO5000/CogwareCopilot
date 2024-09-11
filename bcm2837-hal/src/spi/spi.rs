@@ -1,4 +1,4 @@
-use bcm2837_lpa::{Peripherals, SPI0};
+use bcm2837_lpa::SPI0;
 use embedded_hal::{
     delay::DelayNs,
     digital::OutputPin,
@@ -11,14 +11,85 @@ use crate::delay::Timer;
 
 pub static REFERENCE_FREQ: u32 = 250_000_000;
 
+#[derive(Debug)]
+pub enum SpiZeroError {
+    ClearRxFifo,
+    ClearTxFifo,
+    ClearBothFifo,
+    EnableDma,
+    DisableDma,
+    SetCspol(bool),
+    SetBuiltinCs(BuiltinCS),
+    SetBuiltinCsPol0(bool),
+    SetBuiltinCsPol1(bool),
+    SetBuiltinCsPol2(bool),
+    SetRxInterrupt(bool),
+    SetDoneInterrupt(bool),
+    SetBuiltinDmaCS(bool),
+    SetRenEnable(bool),
+    SetLenEnable(bool),
+    SetDmaLen(bool),
+    SetLenLong(bool),
+}
+
+impl core::fmt::Display for SpiZeroError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Failed to ")?;
+
+        match self {
+            SpiZeroError::ClearRxFifo => write!(f, "clear RX FIFO"),
+            SpiZeroError::ClearTxFifo => write!(f, "clear TX FIFO"),
+            SpiZeroError::ClearBothFifo => write!(f, "clear RX/TX FIFO"),
+            SpiZeroError::EnableDma => write!(f, "enable DMA"),
+            SpiZeroError::DisableDma => write!(f, "disable DMA"),
+            SpiZeroError::SetCspol(mode) => write!(f, "set CS polarity (arg: {})", mode),
+            SpiZeroError::SetBuiltinCs(mode) => write!(f, "set builtin CS mode to {}", mode),
+            SpiZeroError::SetBuiltinCsPol0(mode) => {
+                write!(f, "set builtin CS polarity 0 (arg: {})", mode)
+            }
+            SpiZeroError::SetBuiltinCsPol1(mode) => {
+                write!(f, "set builtin CS polarity 1 (arg: {})", mode)
+            }
+            SpiZeroError::SetBuiltinCsPol2(mode) => {
+                write!(f, "set builtin CS polarity 2 (arg: {})", mode)
+            }
+            SpiZeroError::SetRxInterrupt(mode) => write!(f, "set RX interrupt (arg: {})", mode),
+
+            SpiZeroError::SetDoneInterrupt(mode) => write!(f, "set done interrupt (arg: {})", mode),
+            SpiZeroError::SetBuiltinDmaCS(mode) => write!(f, "set builtin DMA CS (arg: {})", mode),
+            SpiZeroError::SetRenEnable(mode) => write!(f, "set REN enable (arg: {})", mode),
+            SpiZeroError::SetLenEnable(mode) => write!(f, "set len enable (arg: {})", mode),
+            SpiZeroError::SetDmaLen(mode) => write!(f, "set DMA len (arg: {})", mode),
+            SpiZeroError::SetLenLong(mode) => write!(f, "set len long (arg: {})", mode),
+        }
+    }
+}
+
+impl core::error::Error for SpiZeroError {}
+
 pub struct SPIZero<'a> {
     spi0: &'a SPI0,
 }
 
+#[derive(Debug, Clone, Copy)]
 pub enum BuiltinCS {
     Cs0 = 00,
     Cs1 = 01,
     Cs2 = 10,
+}
+
+impl core::fmt::Display for BuiltinCS {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                BuiltinCS::Cs0 => "CS0",
+                BuiltinCS::Cs1 => "CS1",
+                BuiltinCS::Cs2 => "CS2",
+            }
+        )
+    }
 }
 
 impl ErrorType for SPIZero<'_> {
@@ -94,30 +165,30 @@ impl<'a> SPIZero<'a> {
         self.spi0.cs().read().rxd().bit_is_set()
     }
 
-    fn clear_rx_fifo(&self) -> Result<(), ()> {
+    fn clear_rx_fifo(&self) -> Result<(), SpiZeroError> {
         unsafe { self.spi0.cs().modify(|_, w| w.clear().bits(0b10)) };
         if self.spi0.cs().read().clear().bits() == 0b10 {
             return Ok(());
         } else {
-            return Err(());
+            return Err(SpiZeroError::ClearRxFifo);
         }
     }
 
-    fn clear_tx_fifo(&self) -> Result<(), ()> {
+    fn clear_tx_fifo(&self) -> Result<(), SpiZeroError> {
         unsafe { self.spi0.cs().modify(|_, w| w.clear().bits(0b01)) };
         if self.spi0.cs().read().clear().bits() == 0b01 {
             return Ok(());
         } else {
-            return Err(());
+            return Err(SpiZeroError::ClearTxFifo);
         }
     }
 
-    fn clear_both_fifo(&self) -> Result<(), ()> {
+    fn clear_both_fifo(&self) -> Result<(), SpiZeroError> {
         unsafe { self.spi0.cs().modify(|_, w| w.clear().bits(0b11)) };
         if self.spi0.cs().read().clear().bits() == 0b11 {
             return Ok(());
         } else {
-            return Err(());
+            return Err(SpiZeroError::ClearBothFifo);
         }
     }
 
@@ -137,98 +208,98 @@ impl<'a> SPIZero<'a> {
         self.spi0.cs().read().done().bit_is_set()
     }
 
-    fn dma_enable(&self) -> Result<(), ()> {
+    fn dma_enable(&self) -> Result<(), SpiZeroError> {
         self.spi0.cs().modify(|_, w| w.dmaen().bit(true));
         if self.spi0.cs().read().dmaen() == true {
             return Ok(());
         } else {
-            return Err(());
+            return Err(SpiZeroError::EnableDma);
         }
     }
 
-    fn dma_disable(&self) -> Result<(), ()> {
+    fn dma_disable(&self) -> Result<(), SpiZeroError> {
         self.spi0.cs().modify(|_, w| w.dmaen().bit(false));
         if self.spi0.cs().read().dmaen() == false {
             return Ok(());
         } else {
-            return Err(());
+            return Err(SpiZeroError::DisableDma);
         }
     }
 
-    fn set_cspol(&self, mode: bool) -> Result<(), ()> {
+    fn set_cspol(&self, mode: bool) -> Result<(), SpiZeroError> {
         self.spi0.cs().modify(|_, w| w.cspol().bit(mode));
         if self.spi0.cs().read().cspol() == mode {
             return Ok(());
         } else {
-            return Err(());
+            return Err(SpiZeroError::SetCspol(mode));
         }
     }
 
-    fn set_builtin_cs(&self, mode: BuiltinCS) -> Result<(), ()> {
+    fn set_builtin_cs(&self, mode: BuiltinCS) -> Result<(), SpiZeroError> {
         let val = mode as u8;
         unsafe { self.spi0.cs().modify(|_, w| w.cs().bits(val)) };
         if self.spi0.cs().read().cs().bits() == val {
             return Ok(());
         } else {
-            return Err(());
+            return Err(SpiZeroError::SetBuiltinCs(mode));
         }
     }
 
-    fn set_builtin_cspol0(&self, mode: bool) -> Result<(), ()> {
+    fn set_builtin_cspol0(&self, mode: bool) -> Result<(), SpiZeroError> {
         self.spi0.cs().modify(|_, w| w.cspol0().bit(mode));
         if self.spi0.cs().read().cspol0() == mode {
             return Ok(());
         } else {
-            return Err(());
+            return Err(SpiZeroError::SetBuiltinCsPol0(mode));
         }
     }
 
-    fn set_builtin_cspol1(&self, mode: bool) -> Result<(), ()> {
+    fn set_builtin_cspol1(&self, mode: bool) -> Result<(), SpiZeroError> {
         self.spi0.cs().modify(|_, w| w.cspol1().bit(mode));
         if self.spi0.cs().read().cspol1() == mode {
             return Ok(());
         } else {
-            return Err(());
+            return Err(SpiZeroError::SetBuiltinCsPol1(mode));
         }
     }
 
-    fn set_builtin_cspol2(&self, mode: bool) -> Result<(), ()> {
+    fn set_builtin_cspol2(&self, mode: bool) -> Result<(), SpiZeroError> {
         self.spi0.cs().modify(|_, w| w.cspol2().bit(mode));
         if self.spi0.cs().read().cspol2() == mode {
             return Ok(());
         } else {
-            return Err(());
+            return Err(SpiZeroError::SetBuiltinCsPol2(mode));
         }
     }
 
-    fn set_rx_interupt(&self, mode: bool) -> Result<(), ()> {
+    fn set_rx_interupt(&self, mode: bool) -> Result<(), SpiZeroError> {
         self.spi0.cs().modify(|_, w| w.intr().bit(mode));
         if self.spi0.cs().read().intr() == mode {
             return Ok(());
         } else {
-            return Err(());
+            return Err(SpiZeroError::SetRxInterrupt(mode));
         }
     }
 
-    fn set_done_interupt(&self, mode: bool) -> Result<(), ()> {
+    fn set_done_interupt(&self, mode: bool) -> Result<(), SpiZeroError> {
         self.spi0.cs().modify(|_, w| w.intd().bit(mode));
         if self.spi0.cs().read().intd() == mode {
             return Ok(());
         } else {
-            return Err(());
+            return Err(SpiZeroError::SetDoneInterrupt(mode));
         }
     }
 
-    fn set_builtin_dma_cs(&self, mode: bool) -> Result<(), ()> {
+    fn set_builtin_dma_cs(&self, mode: bool) -> Result<(), SpiZeroError> {
         self.spi0.cs().modify(|_, w| w.adcs().bit(mode));
         if self.spi0.cs().read().adcs() == mode {
             return Ok(());
         } else {
-            return Err(());
+            return Err(SpiZeroError::SetBuiltinDmaCS(mode));
         }
     }
 
-    fn set_ren_enable(&self, mode: bool) -> Result<(), ()> {
+    fn set_ren_enable(&self, mode: bool) -> Result<(), SpiZeroError> {
         // from docs: read enable if you are using bidirectional mode.
         //If this bit is set, the SPI peripheral will be able to
         //send data to this device.
@@ -237,33 +308,33 @@ impl<'a> SPIZero<'a> {
         if self.spi0.cs().read().ren() == mode {
             return Ok(());
         } else {
-            return Err(());
+            return Err(SpiZeroError::SetRenEnable(mode));
         }
     }
 
-    fn set_len_enable(&self, mode: bool) -> Result<(), ()> {
+    fn set_len_enable(&self, mode: bool) -> Result<(), SpiZeroError> {
         //LoSSI master enable
 
         self.spi0.cs().modify(|_, w| w.len().bit(mode));
         if self.spi0.cs().read().len() == mode {
             return Ok(());
         } else {
-            return Err(());
+            return Err(SpiZeroError::SetLenEnable(mode));
         }
     }
 
-    fn set_dma_len(&self, mode: bool) -> Result<(), ()> {
+    fn set_dma_len(&self, mode: bool) -> Result<(), SpiZeroError> {
         //DMA Enable in LoSSi
 
         self.spi0.cs().modify(|_, w| w.dma_len().bit(mode));
         if self.spi0.cs().read().dma_len() == mode {
             return Ok(());
         } else {
-            return Err(());
+            return Err(SpiZeroError::SetDmaLen(mode));
         }
     }
 
-    fn set_len_long(&self, mode: bool) -> Result<(), ()> {
+    fn set_len_long(&self, mode: bool) -> Result<(), SpiZeroError> {
         //Enable Long data word in Lossi mode if
         //DMA_LEN is set
         //0= writing to the FIFO will write a single byte
@@ -273,7 +344,7 @@ impl<'a> SPIZero<'a> {
         if self.spi0.cs().read().len() == mode {
             return Ok(());
         } else {
-            return Err(());
+            return Err(SpiZeroError::SetLenLong(mode));
         }
     }
 
@@ -290,19 +361,20 @@ impl<'a> SPIZero<'a> {
     //unimplemented: LTOH Reg and DC Reg
 }
 
-impl<'a> Transfer<u8> for SPIZero<'a>{
-    type Error = ErrorKind;
+impl<'a> Transfer<u8> for SPIZero<'a> {
+    // type Error = ErrorKind;
+    type Error = SpiZeroError;
 
     fn transfer<'w>(&mut self, words: &'w mut [u8]) -> Result<&'w [u8], Self::Error> {
         let _ = self.clear_both_fifo();
         self.set_transfer_active();
         while !self.is_ready_to_send() {}
 
-        for word in words.iter_mut() { 
-            self.set_ren_enable(false);
+        for word in words.iter_mut() {
+            self.set_ren_enable(false)?;
             self.send(*word);
             while !self.transfer_done() {}
-            self.set_ren_enable(true);
+            self.set_ren_enable(true)?;
             if self.rx_fifo_has_data() {
                 *word = self.read_data() as u8;
             }
@@ -432,7 +504,9 @@ where
                     }
                 },
                 Operation::Write(tx_buf) => self.bus.write(tx_buf)?,
-                Operation::Transfer(rx_buf, tx_buf) => SpiBus::transfer(&mut self.bus, rx_buf, tx_buf)?,
+                Operation::Transfer(rx_buf, tx_buf) => {
+                    SpiBus::transfer(&mut self.bus, rx_buf, tx_buf)?
+                }
                 Operation::TransferInPlace(buf) => self.bus.transfer_in_place(buf)?,
                 Operation::DelayNs(ns) => Timer::new().delay_ns(*ns),
             }
