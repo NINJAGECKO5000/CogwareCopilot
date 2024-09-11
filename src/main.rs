@@ -22,26 +22,32 @@ mod panic_wait;
 mod print;
 mod synchronization;
 mod time;
+mod v3d;
 use alloc::{string::String, vec};
+use mailbox::InitV3D;
 
 use crate::mailbox::{max_clock_speed, set_clock_speed};
 use alloc::{format, vec::Vec};
 use bcm2837_hal::*;
 use bsp::memory::initialize_heap;
+use cogware_can::{cli_wri, Gauge, *};
 use core::time::Duration;
 use delay::Timer;
 use embedded_hal::spi::*;
+use embedded_hal_0_2::{
+    can::{Frame, Id, StandardId},
+    digital::v2::OutputPin,
+    prelude::{_embedded_hal_blocking_delay_DelayMs, _embedded_hal_blocking_spi_Transfer},
+};
 use embedded_sdmmc::{sdcard::EMMCController, time::DummyTimesource, Mode, VolumeManager};
 use fb_trait::FrameBufferInterface;
 use fugit::RateExtU32;
 use gpio::{pin, GpioExt};
 use hvs::{Hvs, Plane};
 use hyperpixel::HyperPixel;
+use mcp2515::{error::Error, frame::CanFrame, regs::OpMode, CanSpeed, McpSpeed, MCP2515};
 use pac::{bsc0::a::W, Peripherals};
 use spi::spi::{SPI0Device, SPIZero};
-use mcp2515::{error::Error, frame::CanFrame, regs::OpMode, CanSpeed, McpSpeed, MCP2515};
-use embedded_hal_0_2::{can::{Frame, Id, StandardId}, digital::v2::OutputPin, prelude::{_embedded_hal_blocking_delay_DelayMs, _embedded_hal_blocking_spi_Transfer}};
-use cogware_can::{cli_wri, Gauge, *};
 // use fb_trait::FrameBufferInterface;
 // use framebuffer::FrameBuffer;
 static CONFIGGAUGES: [u8; 9] = [0x20, 0x24, 0x25, 0x26, 0x28, 0x29, 0x2D, 0x35, 0x70];
@@ -66,6 +72,7 @@ unsafe fn kernel_init() -> ! {
         info!("kernel_init");
         let max_clock_speed = max_clock_speed();
         set_clock_speed(max_clock_speed.unwrap());
+        InitV3D();
 
         info!("initializing hvs");
         /*let (header, image) =
@@ -172,7 +179,7 @@ fn kernel_main() -> ! {
     let mut cs = &mut gpio.pins[27];
     cs.set_mode(gpio::PinMode::Output);
 
-     let mut timer = Timer::new();
+    let mut timer = Timer::new();
     // HyperPixel::new(peripherals.GPIO, &mut timer).set_gpio_mode();
 
     let mut spi = SPIZero::new(&peripherals.SPI0);
@@ -184,12 +191,13 @@ fn kernel_main() -> ! {
     can.init(
         &mut timer,
         mcp2515::Settings {
-            mode: OpMode::Normal,          
-            can_speed: CanSpeed::Kbps1000, 
-            mcp_speed: McpSpeed::MHz16,    
+            mode: OpMode::Normal,
+            can_speed: CanSpeed::Kbps1000,
+            mcp_speed: McpSpeed::MHz16,
             clkout_en: false,
         },
-    ).unwrap();
+    )
+    .unwrap();
 
     let masterack = Id::Standard(StandardId::ZERO);
     let clirequest = Id::Standard(StandardId::new(0x015).expect("bad address"));
@@ -244,8 +252,8 @@ fn kernel_main() -> ! {
         let boost = (MAP.get() as f64 * 0.145038) - 14.5038;
         dispgauge0 = format!("STA: {:?}", STA_TIME.get());
         dispgauge1 = format!("BOOST: {:.1}", boost);
-        dispgauge2 = format!("IAT: {:?}", ((IAT.get() * 2) -91));
-        dispgauge3 = format!("CLNT: {:?}", ((CLNT.get() * 2) -91));
+        dispgauge2 = format!("IAT: {:?}", ((IAT.get() * 2) - 91));
+        dispgauge3 = format!("CLNT: {:?}", ((CLNT.get() * 2) - 91));
         dispgauge4 = format!("BATVOL: {:?}", BAT_VOL.get());
         dispgauge5 = format!("AFR: {:?}", (AFR_PRI.get() as f64 / 10.00));
         dispgauge6 = format!("RPM: {:?}", RPM.get());
@@ -263,7 +271,7 @@ fn kernel_main() -> ! {
         info!("{:?}", dispgauge7);
         info!("{:?}", dispgauge8);
         info!("{:?}", dispgauge9);
-        //info!("Spinning for 1 second");
-        //time::time_manager().spin_for(Duration::from_secs(1));
+        info!("Spinning for 1 second");
+        time::time_manager().spin_for(Duration::from_secs(1));
     }
 }

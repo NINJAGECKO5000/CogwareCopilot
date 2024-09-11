@@ -40,6 +40,7 @@ embedded_hal_0_2 = { package = "embedded-hal", version = "0.2.7", features = [
   "unproven",
 ] }
 cogware-can = {path = "CogwareCan"}
+paste = "1.0.15"
 
 # Platform specific dependencies
 [target.'cfg(target_arch = "aarch64")'.dependencies]

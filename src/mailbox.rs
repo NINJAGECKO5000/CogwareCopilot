@@ -10,6 +10,7 @@ pub const SCREEN_WIDTH: u32 = 480;
 // const ResponseSuccessful: u32 = 0;
 const VIDEOCORE_MBOX_BASE: u32 = 0x3F00B880;
 
+use embedded_hal_0_2::prelude::_embedded_hal_blocking_spi_Transfer;
 use tock_registers::{
     interfaces::{Readable, Writeable},
     registers::{ReadOnly, WriteOnly},
@@ -35,7 +36,6 @@ pub const TOTAL_FB_BUFFER_LEN: usize = FB_VIRTUAL_HEIGHT as usize * FB_VIRTUAL_W
 const FB_VIRTUAL_OFFSET_TAG: u32 = 0x48009;
 const FB_VIRTUAL_OFFSET_X: u32 = 0;
 const FB_VIRTUAL_OFFSET_Y: u32 = 0;
-
 
 // TODO: wrap into registers map lib
 #[repr(C)]
@@ -302,7 +302,38 @@ pub fn set_clock_speed(new_clock: u32) {
         info!("Failed to sending message to set clock speed.");
     }
 }
+pub fn initV3D() -> bool {
+    let mut ret = [0u32; 13];
+    ret[0] = (13 * mem::size_of::<u32>()) as u32;
+    ret[1] = 0;
+    ret[2] = SET_CLOCK_RATE; //set clock
+    ret[3] = 8;
+    ret[4] = 8;
+    ret[5] = 5; //channel
+    ret[6] = 250_000_000; //V3D Clock rate
+    ret[2] = 0x00030012; // enable QPU
+    ret[3] = 4;
+    ret[4] = 4;
+    ret[5] = 1;
+    ret[6] = 0;
+    ret[7] = 0;
+    let mut transfer = Message(ret);
+    if send_message_sync(Channel::PROP, &transfer) {
+        info!("message: {:?}", transfer);
+        if check_v3d_ident0() {
+            info!("We Passed V3D Check!");
+            return true;
+        } else {
+            info!("V3D check FAILED!!");
+            return false;
+        }
+    } else {
+        info!("Failed to sending message to init V3D");
+        return false;
+    }
+}
 
+#[allow(non_snake_case)]
 pub fn set_virtual_framebuffer_offset(offset: u32) {
     let message = get_set_virtual_framebuffer_offset_message(offset);
 
@@ -510,6 +541,60 @@ fn send_message_sync<const T: usize>(channel: Channel, message: &Message<T>) -> 
         }
     }
 }
+fn mailbox_tag_message<const N: usize>(channel: Channel, buf: &[u32; N]) -> bool {
+    let mut ret = [0; N];
+    ret[0] = (ret.len() * mem::size_of::<u32>()) as u32;
+    ret[ret.len() + 2] = 0;
+    ret[1] = 0;
+    for i in buf {
+        let val = *i as usize;
+        ret[val + 2] = buf[val];
+    }
+    let transfer = Message(ret);
+
+    let raw_ptr = transfer.0.as_ptr();
+    // This is needed because slices are fat pointers and I need to convert it to a thin pointer
+    // first.
+    let raw_ptr_addr = raw_ptr.cast::<usize>();
+    let raw_ptr_addr = raw_ptr_addr as usize;
+    // !0x0F is 1...10000
+    let addr_clear_last_4_bits = raw_ptr_addr.bitand(!0x0F);
+    let ch_clear_everything_but_last_4_vits = channel as usize & 0xF;
+    let final_addr = addr_clear_last_4_bits | ch_clear_everything_but_last_4_vits;
+
+    let raw_mailbox_ptr = VIDEOCORE_MBOX_BASE as *mut RawMailbox;
+    let raw_mailbox = unsafe { &mut *raw_mailbox_ptr };
+
+    // wait until we can write to the mailbox
+    while raw_mailbox.is_full() {
+        core::hint::spin_loop();
+    }
+
+    raw_mailbox.write_address(final_addr);
+
+    // now wait for the response
+    loop {
+        // is there a response?
+        while raw_mailbox.is_empty() {
+            core::hint::spin_loop();
+        }
+
+        if raw_mailbox.get_read() == final_addr as u32 {
+            return match transfer.response_status() {
+                ReqResp::Request => {
+                    info!("message stll contains a request ?!");
+                    false
+                }
+                ReqResp::ResponseError => {
+                    info!("Something failed, the response is an error");
+                    false
+                }
+                ReqResp::ResponseSuccessful => true,
+            };
+        }
+    }
+}
+
 #[derive(Copy, Clone)]
 pub enum Channel {
     POWER = 0,
