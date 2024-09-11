@@ -88,6 +88,11 @@ struct RawMailbox {
 }
 
 impl RawMailbox {
+    pub(crate) fn get() -> &'static mut RawMailbox {
+        let raw_mailbox_ptr = VIDEOCORE_MBOX_BASE as *mut RawMailbox;
+        unsafe { &mut *raw_mailbox_ptr }
+    }
+
     pub(crate) fn is_empty(&self) -> bool {
         let status = self.get_status();
         status & STATUS_EMPTY == STATUS_EMPTY
