@@ -122,7 +122,7 @@ const STATUS_EMPTY: u32 = 0x40000000;
 impl RawMailbox {}
 
 #[derive(Debug, Copy, Clone)]
-enum ReqResp {
+pub enum ReqResp {
     ResponseSuccessful,
     ResponseError,
     Request,
@@ -505,8 +505,7 @@ pub fn send_message_sync<const T: usize>(
     let ch_clear_everything_but_last_4_vits = channel as usize & 0xF;
     let final_addr = addr_clear_last_4_bits | ch_clear_everything_but_last_4_vits;
 
-    let raw_mailbox_ptr = VIDEOCORE_MBOX_BASE as *mut RawMailbox;
-    let raw_mailbox = unsafe { &mut *raw_mailbox_ptr };
+    let raw_mailbox = RawMailbox::get();
 
     // wait until we can write to the mailbox
     while raw_mailbox.is_full() {
@@ -560,8 +559,7 @@ fn mailbox_tag_message<const N: usize>(
     let ch_clear_everything_but_last_4_vits = channel as usize & 0xF;
     let final_addr = addr_clear_last_4_bits | ch_clear_everything_but_last_4_vits;
 
-    let raw_mailbox_ptr = VIDEOCORE_MBOX_BASE as *mut RawMailbox;
-    let raw_mailbox = unsafe { &mut *raw_mailbox_ptr };
+    let raw_mailbox = RawMailbox::get();
 
     // wait until we can write to the mailbox
     while raw_mailbox.is_full() {
