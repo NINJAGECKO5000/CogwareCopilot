@@ -270,7 +270,6 @@ pub fn lfb_init<'a: 'static>() -> Result<FrameBuffer, MailboxError> {
         return Err(MailboxError::LfbInit { addr: message[28] });
     }
 
-    // return if message[28] != 0 {
     // convert GPU address to ARM address
     let fb_ptr_raw = (message[28] & 0x3FFFFFFF) as usize;
     info!("fb_ptr_raw: {}", fb_ptr_raw);
@@ -306,18 +305,6 @@ pub fn lfb_init<'a: 'static>() -> Result<FrameBuffer, MailboxError> {
             width, height, pitch, depth, is_rgb
         );
     Ok(fb)
-    // } else {
-    //     info!(
-    //         "Something went wrong setting up lfb. Send message: {}, lfb address: {}",
-    //         res, message[28]
-    //     );
-    //     if tentative == false {
-    //         None
-    //     } else {
-    //         info!("trying again");
-    //         lfb_init(1)
-    //     }
-    // };
 }
 
 pub fn set_clock_speed(new_clock: u32) -> Result<(), MailboxError> {
@@ -327,7 +314,6 @@ pub fn set_clock_speed(new_clock: u32) -> Result<(), MailboxError> {
     //    message
     //);
     send_message_sync(Channel::PROP, &message).map_err(|_| MailboxError::SetClockSpeed)?;
-    // if send_message_sync(Channel::PROP, &message) {
     //  info!("message: {:?}", message);
     let rate = message[6];
     let ratecalc: f64 = rate.into();
@@ -335,17 +321,9 @@ pub fn set_clock_speed(new_clock: u32) -> Result<(), MailboxError> {
         "New rate for ARM CORE is: {:?}Ghz",
         ratecalc / 1_000_000_000.0
     );
-    // } else {
-    //     info!("Failed to sending message to set clock speed.");
-    // }
     let message2 = get_current_clock_rate_message();
-    // info!(
-    //   "Sending message to channel PROP to read clock speed: {:?}",
-    //   message2
-    //);
 
     send_message_sync(Channel::PROP, &message2).map_err(|_| MailboxError::SetClockSpeed)?;
-    // if send_message_sync(Channel::PROP, &message2) {
     info!("message: {:?}", message2);
     let rate = message2[6];
     let ratecalc: f64 = rate.into();
@@ -354,9 +332,6 @@ pub fn set_clock_speed(new_clock: u32) -> Result<(), MailboxError> {
         "Rate Readback to check ARM CORE is: {:?}Ghz",
         ratecalc / 1_000_000_000.0
     );
-    // } else {
-    //     info!("Failed to sending message to set clock speed.");
-    // }
     Ok(())
 }
 
@@ -373,16 +348,12 @@ pub fn test_set_virtual_framebuffer_offset(offset: u32) -> Result<(), MailboxErr
 
     send_message_sync(Channel::PROP, &message).map_err(|_| MailboxError::SetVirtFB)?;
 
-    // if send_message_sync(Channel::PROP, &message) {
     let offset_x = message[5];
     let offset_y = message[6];
     info!(
         " requested offset: {} new offset: {}, y{}",
         offset, offset_x, offset_y
     );
-    // } else {
-    //     info!("Failed to sending message to set virtual framebuffer offset.");
-    // }
     Ok(())
 }
 
@@ -396,19 +367,6 @@ pub fn max_clock_speed() -> Result<u32, MailboxError> {
     //);
     send_message_sync(Channel::PROP, &message2).map_err(|_| MailboxError::GetMaxSpeed)?;
 
-    // if send_message_sync(Channel::PROP, &message2) {
-    //     info!("message: {:?}", message2);
-    //     let rate = message2.0[6];
-    //     let ratecalc: f64 = rate.into();
-    //
-    //     info!(
-    //         "Current ARM CORE rate is: {:?}Ghz",
-    //         ratecalc / 1_000_000_000.0
-    //     );
-    // } else {
-    //     info!("Failed to sending message to set clock speed.");
-    // }
-
     info!("message: {:?}", message2);
     let rate = message2[6];
     let ratecalc: f64 = rate.into();
@@ -420,26 +378,7 @@ pub fn max_clock_speed() -> Result<u32, MailboxError> {
 
     let message = max_clock_rate_message();
 
-    // info!(
-    //    "Sending message to channel PROP for max clock speed: {:?}",
-    //    message
-    //);
-
     send_message_sync(Channel::PROP, &message).map_err(|_| MailboxError::GetMaxSpeed)?;
-
-    // if send_message_sync(Channel::PROP, &message) {
-    //     info!("message: {:?}", message);
-    //     let max_speed_hz = message[6];
-    //     let ratecalc: f64 = max_speed_hz.into();
-    //     info!(
-    //         "Max clock speed for ARM CORE is : {:?}Ghz",
-    //         ratecalc / 1_000_000_000.0
-    //     );
-    //     Some(max_speed_hz)
-    // } else {
-    //     info!("Failed to sending message to query max clock speed.");
-    //     None
-    // }
 
     info!("message: {:?}", message);
     let max_speed_hz = message[6];
