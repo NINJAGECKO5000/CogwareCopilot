@@ -24,7 +24,6 @@ mod synchronization;
 mod time;
 mod v3d;
 use alloc::{string::String, vec};
-use mailbox::InitV3D;
 
 use crate::mailbox::{max_clock_speed, set_clock_speed};
 use alloc::{format, vec::Vec};
@@ -71,8 +70,8 @@ unsafe fn kernel_init() -> ! {
         initialize_heap();
         info!("kernel_init");
         let max_clock_speed = max_clock_speed();
-        set_clock_speed(max_clock_speed.unwrap());
-        InitV3D();
+        set_clock_speed(max_clock_speed.unwrap()).unwrap();
+        v3d::init().unwrap();
 
         info!("initializing hvs");
         /*let (header, image) =
@@ -104,7 +103,8 @@ unsafe fn kernel_init() -> ! {
         //     hvs.draw();
         //     timer.delay_ns(500_000_000);
         // }*/
-        let mut fb = mailbox::lfb_init(0).expect("Failed to init framebuffer");
+        // let mut fb = mailbox::lfb_init(0).expect("Failed to init framebuffer");
+        let mut fb = mailbox::lfb_init().expect("Failed to init framebuffer");
         fb.display_boot_image();
         // let u = u.assume_init();
     }

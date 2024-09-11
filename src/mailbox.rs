@@ -1,6 +1,7 @@
 use crate::framebuffer::FrameBuffer; // videocoremboxbase: 3F00B880 resp-successful: 0
 use crate::{info, mailbox::ReqResp::ResponseSuccessful};
-use core::{arch::aarch64::float32x2_t, mem, ops::BitAnd};
+use core::ops::Deref;
+use core::{mem, ops::BitAnd};
 // use log::info;
 // use space_invaders::{SCREEN_HEIGHT, SCREEN_WIDTH}; // we hard set these here for now, should
 // really ask the HVS for the screen H and W
@@ -10,7 +11,8 @@ pub const SCREEN_WIDTH: u32 = 480;
 // const ResponseSuccessful: u32 = 0;
 const VIDEOCORE_MBOX_BASE: u32 = 0x3F00B880;
 
-use embedded_hal_0_2::prelude::_embedded_hal_blocking_spi_Transfer;
+use alloc::fmt::format;
+use alloc::string::String;
 use tock_registers::{
     interfaces::{Readable, Writeable},
     registers::{ReadOnly, WriteOnly},
@@ -36,6 +38,40 @@ pub const TOTAL_FB_BUFFER_LEN: usize = FB_VIRTUAL_HEIGHT as usize * FB_VIRTUAL_W
 const FB_VIRTUAL_OFFSET_TAG: u32 = 0x48009;
 const FB_VIRTUAL_OFFSET_X: u32 = 0;
 const FB_VIRTUAL_OFFSET_Y: u32 = 0;
+
+#[derive(Debug)]
+pub enum MailboxError {
+    SendMessage(String),
+    SetVirtFB,
+    SetClockSpeed,
+    GetMaxSpeed,
+    QuerySerial,
+    LfbInit { addr: u32 },
+}
+
+impl core::fmt::Display for MailboxError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let msg = match self {
+            MailboxError::SendMessage(c) => {
+                &format(format_args!("Failed to send mailbox message: {}", c))
+            }
+            MailboxError::SetVirtFB => {
+                "Failed to sending message to set virtual framebuffer offset."
+            }
+            MailboxError::GetMaxSpeed => "Failed to get max clock speed",
+            MailboxError::LfbInit { addr } => &format(format_args!(
+                "Something went wrong setting up lfb. lfb address: {}",
+                addr
+            )),
+            MailboxError::SetClockSpeed => "Failed to sending message to set clock speed.",
+            MailboxError::QuerySerial => "Failed to sending message to query the board serial.",
+        };
+
+        write!(f, "{}", msg)
+    }
+}
+
+impl core::error::Error for MailboxError {}
 
 // TODO: wrap into registers map lib
 #[repr(C)]
@@ -116,47 +152,59 @@ impl From<u32> for ReqResp {
         }
     }
 }
-const MBOX_REQUEST: u32 = 0;
-const BOARD_SERIAL_REQ: u32 = 0x00010004;
-const GET_MAX_CLOCK_RATE: u32 = 0x00030004;
-const SET_CLOCK_RATE: u32 = 0x00038002;
-const GET_CURRENT_CLOCK_RATE: u32 = 0x00030002;
-const SET_VIRTUAL_BUFFER_OFFSET_TAG: u32 = 0x00048009;
-const TEST_SET_VIRTUAL_BUFFER_OFFSET_TAG: u32 = 0x00044009;
-const LAST_TAG: u32 = 0;
+pub const MBOX_REQUEST: u32 = 0;
+pub const BOARD_SERIAL_REQ: u32 = 0x00010004;
+pub const GET_MAX_CLOCK_RATE: u32 = 0x00030004;
+pub const SET_CLOCK_RATE: u32 = 0x00038002;
+pub const GET_CURRENT_CLOCK_RATE: u32 = 0x00030002;
+pub const SET_VIRTUAL_BUFFER_OFFSET_TAG: u32 = 0x00048009;
+pub const TEST_SET_VIRTUAL_BUFFER_OFFSET_TAG: u32 = 0x00044009;
+pub const LAST_TAG: u32 = 0;
 
 #[repr(align(16))]
 #[derive(Debug, Copy, Clone)]
-struct Message<const T: usize>([u32; T]);
+pub struct Message<const T: usize>([u32; T]);
+
+impl<const T: usize> Deref for Message<T> {
+    type Target = [u32; T];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 impl<const T: usize> Message<T> {
+    pub fn new(message: [u32; T]) -> Message<T> {
+        Message(message)
+    }
+
     pub fn response_status(&self) -> ReqResp {
         ReqResp::from(self.0[1])
     }
+
     pub fn is_response_successfull(&self) -> bool {
         self.response_status() == ResponseSuccessful
     }
 }
 
-pub fn query_board_serial() -> Option<u64> {
+pub fn query_board_serial() -> Result<u64, MailboxError> {
     info!("Preparing board message..");
     let message = board_serial_message();
     info!("Sending message to channel PROP: {:?}", message);
 
-    return if send_message_sync(Channel::PROP, &message) {
-        info!(
-            "Serial number is: {:#04x}/{:#04x}",
-            message.0[5], message.0[4]
-        );
-        let b = message.0[4].to_ne_bytes();
-        let c = message.0[5].to_ne_bytes();
-        let single = [b[0], b[1], b[2], b[3], c[0], c[1], c[2], c[3]];
-        info!("Single: {:?}", single);
-        Some(u64::from_ne_bytes(single))
-    } else {
-        info!("Failed to sending message to query the board serial.");
-        None
-    };
+    send_message_sync(Channel::PROP, &message).map_err(|_| MailboxError::QuerySerial)?;
+    // return if send_message_sync(Channel::PROP, &message) {
+    info!("Serial number is: {:#04x}/{:#04x}", message[5], message[4]);
+    let b = message[4].to_ne_bytes();
+    let c = message[5].to_ne_bytes();
+    let single = [b[0], b[1], b[2], b[3], c[0], c[1], c[2], c[3]];
+    info!("Single: {:?}", single);
+    //     Some(u64::from_ne_bytes(single))
+    // } else {
+    //     info!("Failed to sending message to query the board serial.");
+    //     None
+    // };
+    Ok(u64::from_ne_bytes(single))
 }
 
 const fn lfb_message() -> Message<LFB_MESSAGE_SIZE> {
@@ -213,155 +261,132 @@ const fn lfb_message() -> Message<LFB_MESSAGE_SIZE> {
     Message(ret)
 }
 
-pub fn lfb_init<'a: 'static>(tentative: usize) -> Option<FrameBuffer> {
+// pub fn lfb_init<'a: 'static>(tentative: usize) -> Result<FrameBuffer, MailboxError> {
+pub fn lfb_init<'a: 'static>() -> Result<FrameBuffer, MailboxError> {
     let message = lfb_message();
-    let res = send_message_sync(Channel::PROP, &message);
-    return if res && message.0[28] != 0 {
-        // convert GPU address to ARM address
-        let fb_ptr_raw = (message.0[28] & 0x3FFFFFFF) as usize;
-        info!("fb_ptr_raw: {}", fb_ptr_raw);
+    send_message_sync(Channel::PROP, &message)?;
 
-        // get actual physical width
-        let width = message.0[5];
-        // get actual physical height
-        let height = message.0[6];
-        // get number of bytes per line:
-        let pitch = message.0[33];
-        // get the pixel depth TODO: is this correct? Missin from: https://github.com/bztsrc/raspi3-tutorial/blob/master/09_framebuffer/lfb.c
-        let depth = message.0[20];
-        // get the actual channel order. brg = 0, rgb > 0
-        let is_rgb = message.0[24] != 0;
+    if message[28] == 0 {
+        return Err(MailboxError::LfbInit { addr: message[28] });
+    }
 
-        let casted = fb_ptr_raw as *const u32 as *mut u32;
-        let casted = unsafe { &mut *casted };
-        let framebuff: &mut [u32] =
-            unsafe { core::slice::from_raw_parts_mut(casted, TOTAL_FB_BUFFER_LEN) };
-        let fb = FrameBuffer {
-            framebuff,
-            width,
-            height,
-            pitch,
-            depth_bits: depth,
-            is_rgb,
-            is_brg: !is_rgb,
-            fb_virtual_width: FB_VIRTUAL_WIDTH,
-            current_index: 0,
-        };
-        info!(
+    // return if message[28] != 0 {
+    // convert GPU address to ARM address
+    let fb_ptr_raw = (message[28] & 0x3FFFFFFF) as usize;
+    info!("fb_ptr_raw: {}", fb_ptr_raw);
+
+    // get actual physical width
+    let width = message[5];
+    // get actual physical height
+    let height = message[6];
+    // get number of bytes per line:
+    let pitch = message[33];
+    // get the pixel depth TODO: is this correct? Missin from: https://github.com/bztsrc/raspi3-tutorial/blob/master/09_framebuffer/lfb.c
+    let depth = message[20];
+    // get the actual channel order. brg = 0, rgb > 0
+    let is_rgb = message[24] != 0;
+
+    let casted = fb_ptr_raw as *const u32 as *mut u32;
+    let casted = unsafe { &mut *casted };
+    let framebuff: &mut [u32] =
+        unsafe { core::slice::from_raw_parts_mut(casted, TOTAL_FB_BUFFER_LEN) };
+    let fb = FrameBuffer {
+        framebuff,
+        width,
+        height,
+        pitch,
+        depth_bits: depth,
+        is_rgb,
+        is_brg: !is_rgb,
+        fb_virtual_width: FB_VIRTUAL_WIDTH,
+        current_index: 0,
+    };
+    info!(
             "All good, setting up the frame buffer now: {}, height: {}, pitch: {}, depth:{}, is_rgb: {}",
             width, height, pitch, depth, is_rgb
         );
-        Some(fb)
-    } else {
-        info!(
-            "Something went wrong setting up lfb. Send message: {}, lfb address: {}",
-            res, message.0[28]
-        );
-        if tentative == 1 {
-            None
-        } else {
-            info!("trying again");
-            lfb_init(1)
-        }
-    };
+    Ok(fb)
+    // } else {
+    //     info!(
+    //         "Something went wrong setting up lfb. Send message: {}, lfb address: {}",
+    //         res, message[28]
+    //     );
+    //     if tentative == false {
+    //         None
+    //     } else {
+    //         info!("trying again");
+    //         lfb_init(1)
+    //     }
+    // };
 }
 
-pub fn set_clock_speed(new_clock: u32) {
+pub fn set_clock_speed(new_clock: u32) -> Result<(), MailboxError> {
     let message = get_set_clock_rate_message(new_clock);
     // info!(
     //    "Sending message to channel PROP to set clock speed: {:?}",
     //    message
     //);
-
-    if send_message_sync(Channel::PROP, &message) {
-        //  info!("message: {:?}", message);
-        let rate = message.0[6];
-        let ratecalc: f64 = rate.into();
-        info!(
-            "New rate for ARM CORE is: {:?}Ghz",
-            ratecalc / 1_000_000_000.0
-        );
-    } else {
-        info!("Failed to sending message to set clock speed.");
-    }
+    send_message_sync(Channel::PROP, &message).map_err(|_| MailboxError::SetClockSpeed)?;
+    // if send_message_sync(Channel::PROP, &message) {
+    //  info!("message: {:?}", message);
+    let rate = message[6];
+    let ratecalc: f64 = rate.into();
+    info!(
+        "New rate for ARM CORE is: {:?}Ghz",
+        ratecalc / 1_000_000_000.0
+    );
+    // } else {
+    //     info!("Failed to sending message to set clock speed.");
+    // }
     let message2 = get_current_clock_rate_message();
     // info!(
     //   "Sending message to channel PROP to read clock speed: {:?}",
     //   message2
     //);
-    if send_message_sync(Channel::PROP, &message2) {
-        info!("message: {:?}", message2);
-        let rate = message2.0[6];
-        let ratecalc: f64 = rate.into();
 
-        info!(
-            "Rate Readback to check ARM CORE is: {:?}Ghz",
-            ratecalc / 1_000_000_000.0
-        );
-    } else {
-        info!("Failed to sending message to set clock speed.");
-    }
-}
-pub fn initV3D() -> bool {
-    let mut ret = [0u32; 13];
-    ret[0] = (13 * mem::size_of::<u32>()) as u32;
-    ret[1] = 0;
-    ret[2] = SET_CLOCK_RATE; //set clock
-    ret[3] = 8;
-    ret[4] = 8;
-    ret[5] = 5; //channel
-    ret[6] = 250_000_000; //V3D Clock rate
-    ret[2] = 0x00030012; // enable QPU
-    ret[3] = 4;
-    ret[4] = 4;
-    ret[5] = 1;
-    ret[6] = 0;
-    ret[7] = 0;
-    let mut transfer = Message(ret);
-    if send_message_sync(Channel::PROP, &transfer) {
-        info!("message: {:?}", transfer);
-        if check_v3d_ident0() {
-            info!("We Passed V3D Check!");
-            return true;
-        } else {
-            info!("V3D check FAILED!!");
-            return false;
-        }
-    } else {
-        info!("Failed to sending message to init V3D");
-        return false;
-    }
+    send_message_sync(Channel::PROP, &message2).map_err(|_| MailboxError::SetClockSpeed)?;
+    // if send_message_sync(Channel::PROP, &message2) {
+    info!("message: {:?}", message2);
+    let rate = message2[6];
+    let ratecalc: f64 = rate.into();
+
+    info!(
+        "Rate Readback to check ARM CORE is: {:?}Ghz",
+        ratecalc / 1_000_000_000.0
+    );
+    // } else {
+    //     info!("Failed to sending message to set clock speed.");
+    // }
+    Ok(())
 }
 
 #[allow(non_snake_case)]
-pub fn set_virtual_framebuffer_offset(offset: u32) {
+pub fn set_virtual_framebuffer_offset(offset: u32) -> Result<(), MailboxError> {
     let message = get_set_virtual_framebuffer_offset_message(offset);
+    send_message_sync(Channel::PROP, &message).map_err(|_| MailboxError::SetVirtFB)?;
 
-    if send_message_sync(Channel::PROP, &message) {
-        // let offset_x = message.0[5];
-        // let offset_y = message.0[6];
-        // info!("New offset: {}, y{}", offset_x, offset_y);
-    } else {
-        info!("Failed to sending message to set virtual framebuffer offset.");
-    }
+    Ok(())
 }
 
-pub fn test_set_virtual_framebuffer_offset(offset: u32) {
+pub fn test_set_virtual_framebuffer_offset(offset: u32) -> Result<(), MailboxError> {
     let message = get_test_virtual_fb_offset_message(offset);
 
-    if send_message_sync(Channel::PROP, &message) {
-        let offset_x = message.0[5];
-        let offset_y = message.0[6];
-        info!(
-            " requested offset: {} new offset: {}, y{}",
-            offset, offset_x, offset_y
-        );
-    } else {
-        info!("Failed to sending message to set virtual framebuffer offset.");
-    }
+    send_message_sync(Channel::PROP, &message).map_err(|_| MailboxError::SetVirtFB)?;
+
+    // if send_message_sync(Channel::PROP, &message) {
+    let offset_x = message[5];
+    let offset_y = message[6];
+    info!(
+        " requested offset: {} new offset: {}, y{}",
+        offset, offset_x, offset_y
+    );
+    // } else {
+    //     info!("Failed to sending message to set virtual framebuffer offset.");
+    // }
+    Ok(())
 }
 
-pub fn max_clock_speed() -> Option<u32> {
+pub fn max_clock_speed() -> Result<u32, MailboxError> {
     // command 0x00030004 ARM clock ID = 0x3
     // BCM2835_MAILBOX_TAG_GET_MAX_CLOCK_RATE 0x00030004
     let message2 = get_current_clock_rate_message();
@@ -369,37 +394,61 @@ pub fn max_clock_speed() -> Option<u32> {
     //   "Sending message to channel PROP to read clock speed: {:?}",
     //   message2
     //);
-    if send_message_sync(Channel::PROP, &message2) {
-        info!("message: {:?}", message2);
-        let rate = message2.0[6];
-        let ratecalc: f64 = rate.into();
+    send_message_sync(Channel::PROP, &message2).map_err(|_| MailboxError::GetMaxSpeed)?;
 
-        info!(
-            "Current ARM CORE rate is: {:?}Ghz",
-            ratecalc / 1_000_000_000.0
-        );
-    } else {
-        info!("Failed to sending message to set clock speed.");
-    }
+    // if send_message_sync(Channel::PROP, &message2) {
+    //     info!("message: {:?}", message2);
+    //     let rate = message2.0[6];
+    //     let ratecalc: f64 = rate.into();
+    //
+    //     info!(
+    //         "Current ARM CORE rate is: {:?}Ghz",
+    //         ratecalc / 1_000_000_000.0
+    //     );
+    // } else {
+    //     info!("Failed to sending message to set clock speed.");
+    // }
+
+    info!("message: {:?}", message2);
+    let rate = message2[6];
+    let ratecalc: f64 = rate.into();
+
+    info!(
+        "Current ARM CORE rate is: {:?}Ghz",
+        ratecalc / 1_000_000_000.0
+    );
+
     let message = max_clock_rate_message();
+
     // info!(
     //    "Sending message to channel PROP for max clock speed: {:?}",
     //    message
     //);
 
-    if send_message_sync(Channel::PROP, &message) {
-        info!("message: {:?}", message);
-        let max_speed_hz = message.0[6];
-        let ratecalc: f64 = max_speed_hz.into();
-        info!(
-            "Max clock speed for ARM CORE is : {:?}Ghz",
-            ratecalc / 1_000_000_000.0
-        );
-        Some(max_speed_hz)
-    } else {
-        info!("Failed to sending message to query max clock speed.");
-        None
-    }
+    send_message_sync(Channel::PROP, &message).map_err(|_| MailboxError::GetMaxSpeed)?;
+
+    // if send_message_sync(Channel::PROP, &message) {
+    //     info!("message: {:?}", message);
+    //     let max_speed_hz = message[6];
+    //     let ratecalc: f64 = max_speed_hz.into();
+    //     info!(
+    //         "Max clock speed for ARM CORE is : {:?}Ghz",
+    //         ratecalc / 1_000_000_000.0
+    //     );
+    //     Some(max_speed_hz)
+    // } else {
+    //     info!("Failed to sending message to query max clock speed.");
+    //     None
+    // }
+
+    info!("message: {:?}", message);
+    let max_speed_hz = message[6];
+    let ratecalc: f64 = max_speed_hz.into();
+    info!(
+        "Max clock speed for ARM CORE is : {:?}Ghz",
+        ratecalc / 1_000_000_000.0
+    );
+    Ok(max_speed_hz)
 }
 
 const SET_VIRTUAL_FRAMEBUFFER_OFFSET_MESSAGE_SIZE: usize = 8;
@@ -498,8 +547,11 @@ fn board_serial_message() -> Message<SERIAL_MESSAGE_SIZE> {
     Message(ret)
 }
 
-fn send_message_sync<const T: usize>(channel: Channel, message: &Message<T>) -> bool {
-    let raw_ptr = message.0.as_ptr();
+pub fn send_message_sync<const T: usize>(
+    channel: Channel,
+    message: &Message<T>,
+) -> Result<(), MailboxError> {
+    let raw_ptr = message.as_ptr();
     // This is needed because slices are fat pointers and I need to convert it to a thin pointer
     // first.
     let raw_ptr_addr = raw_ptr.cast::<usize>();
@@ -528,20 +580,22 @@ fn send_message_sync<const T: usize>(channel: Channel, message: &Message<T>) -> 
 
         if raw_mailbox.get_read() == final_addr as u32 {
             return match message.response_status() {
-                ReqResp::Request => {
-                    info!("message stll contains a request ?!");
-                    false
-                }
-                ReqResp::ResponseError => {
-                    info!("Something failed, the response is an error");
-                    false
-                }
-                ReqResp::ResponseSuccessful => true,
+                ReqResp::Request => Err(MailboxError::SendMessage(String::from(
+                    "Message still contains a request?!",
+                ))),
+                ReqResp::ResponseError => Err(MailboxError::SendMessage(String::from(
+                    "Something failed, the response is an error",
+                ))),
+                ReqResp::ResponseSuccessful => Ok(()),
             };
         }
     }
 }
-fn mailbox_tag_message<const N: usize>(channel: Channel, buf: &[u32; N]) -> bool {
+
+fn mailbox_tag_message<const N: usize>(
+    channel: Channel,
+    buf: &[u32; N],
+) -> Result<(), MailboxError> {
     let mut ret = [0; N];
     ret[0] = (ret.len() * mem::size_of::<u32>()) as u32;
     ret[ret.len() + 2] = 0;
@@ -581,15 +635,13 @@ fn mailbox_tag_message<const N: usize>(channel: Channel, buf: &[u32; N]) -> bool
 
         if raw_mailbox.get_read() == final_addr as u32 {
             return match transfer.response_status() {
-                ReqResp::Request => {
-                    info!("message stll contains a request ?!");
-                    false
-                }
-                ReqResp::ResponseError => {
-                    info!("Something failed, the response is an error");
-                    false
-                }
-                ReqResp::ResponseSuccessful => true,
+                ReqResp::Request => Err(MailboxError::SendMessage(String::from(
+                    "Message still contains a request?!",
+                ))),
+                ReqResp::ResponseError => Err(MailboxError::SendMessage(String::from(
+                    "Something failed, the response is an error",
+                ))),
+                ReqResp::ResponseSuccessful => Ok(()),
             };
         }
     }
