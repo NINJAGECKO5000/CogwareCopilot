@@ -177,7 +177,7 @@ fn kernel_main() -> ! {
     let mut timer = Timer::new();
     // HyperPixel::new(peripherals.GPIO, &mut timer).set_gpio_mode();
 
-    let mut spi = SPIZero::new(&peripherals.SPI0);
+    /*let mut spi = SPIZero::new(&peripherals.SPI0);
     spi.init(embedded_hal::spi::MODE_0, 10.MHz());
     info!("in theory SPI inited");
 
@@ -226,9 +226,10 @@ fn kernel_main() -> ! {
     let mut dispgauge7: String;
     let mut dispgauge8: String;
     let mut dispgauge9: String;
-    let mut bingus: u8 = 0;
+    let mut bingus: u8 = 0;*/
+    //^commented for V3D testing
     loop {
-        let timeout = timer.now() + Duration::from_millis(15);
+        /*let timeout = timer.now() + Duration::from_millis(15);
         while timer.now() <= timeout {
             match can.read_message() {
                 Ok(frame) => {
@@ -265,7 +266,8 @@ fn kernel_main() -> ! {
         info!("{:?}", dispgauge6);
         info!("{:?}", dispgauge7);
         info!("{:?}", dispgauge8);
-        info!("{:?}", dispgauge9);
+        info!("{:?}", dispgauge9);*/ 
+        //^commented for V3D testing
         info!("Spinning for 1 second");
         time::time_manager().spin_for(Duration::from_secs(1));
     }
