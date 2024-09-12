@@ -2,104 +2,185 @@ use core::mem;
 
 use crate::{
     info,
-    mailbox::{self, send_message_sync, MailboxRegisters, MBOX_REQUEST, LAST_TAG},
+    mailbox::{self, send_message_sync, MailboxTag, LAST_TAG, MBOX_REQUEST},
 };
 const RPI_IO_BASE_ADDR: usize = 0x3F00_0000; // Replace with actual base address
 const V3D_OFFSET: usize = 0xc00000;
-struct V3DRegisters;
+
 #[allow(dead_code)]
-impl V3DRegisters {
-    pub const V3D_IDENT0: usize = 0x000; // V3D Identification 0 (V3D block identity)
-    pub const V3D_IDENT1: usize = 0x004; // V3D Identification 1 (V3D Configuration A)
-    pub const V3D_IDENT2: usize = 0x008; // V3D Identification 1 (V3D Configuration B)
+#[repr(u32)]
+pub enum V3DRegisters {
+    /// V3D Identification 0 (V3D block identity)
+    Ident0 = 0x000,
+    /// V3D Identification 1 (V3D Configuration A)
+    Ident1 = 0x004,
+    /// V3D Identification 1 (V3D Configuration B)
+    Ident2 = 0x008,
 
-    pub const V3D_SCRATCH: usize = 0x010; // Scratch Register
+    /// Scratch Register
+    Scratch = 0x010,
 
-    pub const V3D_L2CACTL: usize = 0x020; // 2 Cache Control
-    pub const V3D_SLCACTL: usize = 0x024; // Slices Cache Control
+    /// 2 Cache Control
+    L2CacheCtrl = 0x020,
+    /// Slices Cache Control
+    SliceCacheCtrl = 0x024,
 
-    pub const V3D_INTCTL: usize = 0x030; // Interrupt Control
-    pub const V3D_INTENA: usize = 0x034; // Interrupt Enables
-    pub const V3D_INTDIS: usize = 0x038; // Interrupt Disables
+    /// Interrupt Control
+    InterruptCtrl = 0x030,
+    /// Interrupt Enables
+    InterruptEnable = 0x034,
+    /// Interrupt Disables
+    InterruptDisable = 0x038,
 
-    pub const V3D_CT0CS: usize = 0x100; // Control List Executor Thread 0 Control and Status.
-    pub const V3D_CT1CS: usize = 0x104; // Control List Executor Thread 1 Control and Status.
-    pub const V3D_CT0EA: usize = 0x108; // Control List Executor Thread 0 End Address.
-    pub const V3D_CT1EA: usize = 0x10c; // Control List Executor Thread 1 End Address.
-    pub const V3D_CT0CA: usize = 0x110; // Control List Executor Thread 0 Current Address.
-    pub const V3D_CT1CA: usize = 0x114; // Control List Executor Thread 1 Current Address.
-    pub const V3D_CT00RA0: usize = 0x118; // Control List Executor Thread 0 Return Address.
-    pub const V3D_CT01RA0: usize = 0x11c; // Control List Executor Thread 1 Return Address.
-    pub const V3D_CT0LC: usize = 0x120; // Control List Executor Thread 0 List Counter
-    pub const V3D_CT1LC: usize = 0x124; // Control List Executor Thread 1 List Counter
-    pub const V3D_CT0PC: usize = 0x128; // Control List Executor Thread 0 Primitive List Counter
-    pub const V3D_CT1PC: usize = 0x12c; // Control List Executor Thread 1 Primitive List Counter
+    /// Control List Executor Thread 0 Control and Status.
+    ControlList0CS = 0x100,
+    /// Control List Executor Thread 1 Control and Status.
+    ControlList1CS = 0x104,
+    /// Control List Executor Thread 0 End Address.
+    ControlList0EA = 0x108,
+    /// Control List Executor Thread 1 End Address.
+    ControlList1EA = 0x10c,
+    /// Control List Executor Thread 0 Current Address.
+    ControlList0CA = 0x110,
+    /// Control List Executor Thread 1 Current Address.
+    ControlList1CA = 0x114,
+    /// Control List Executor Thread 0 Return Address.
+    ControlList00RA0 = 0x118,
+    /// Control List Executor Thread 1 Return Address.
+    ControlList01RA0 = 0x11c,
+    /// Control List Executor Thread 0 List Counter
+    ControlList0LC = 0x120,
+    /// Control List Executor Thread 1 List Counter
+    ControlList1LC = 0x124,
+    /// Control List Executor Thread 0 Primitive List Counter
+    ControlList0PC = 0x128,
+    /// Control List Executor Thread 1 Primitive List Counter
+    ControlList1PC = 0x12c,
 
-    pub const V3D_PCS: usize = 0x130; // V3D Pipeline Control and Status
-    pub const V3D_BFC: usize = 0x134; // Binning Mode Flush Count
-    pub const V3D_RFC: usize = 0x138; // Rendering Mode Frame Count
+    /// V3D Pipeline Control and Status
+    PipelineCS = 0x130,
+    /// Binning Mode Flush Count
+    BinningFlushCnt = 0x134,
+    /// Rendering Mode Frame Count
+    RenderFrameCnt = 0x138,
 
-    pub const V3D_BPCA: usize = 0x300; // Current Address of Binning Memory Pool
-    pub const V3D_BPCS: usize = 0x304; // Remaining Size of Binning Memory Pool
-    pub const V3D_BPOA: usize = 0x308; // Address of Overspill Binning Memory Block
-    pub const V3D_BPOS: usize = 0x30c; // Size of Overspill Binning Memory Block
-    pub const V3D_BXCF: usize = 0x310; // Binner Debug
+    /// Current Address of Binning Memory Pool
+    BinningMemPool = 0x300,
+    /// Remaining Size of Binning Memory Pool
+    FreeBinningMemPool = 0x304,
+    /// Address of Overspill Binning Memory Block
+    BinningOverspill = 0x308,
+    /// Size of Overspill Binning Memory Block
+    BinningOverspillSize = 0x30c,
+    /// Binner Debug
+    BinnerDebug = 0x310,
 
-    pub const V3D_SQRSV0: usize = 0x410; // Reserve QPUs 0-7
-    pub const V3D_SQRSV1: usize = 0x414; // Reserve QPUs 8-15
-    pub const V3D_SQCNTL: usize = 0x418; // QPU Scheduler Control
+    /// Reserve QPUs 0-7
+    ReserveQpuBank0 = 0x410,
+    /// Reserve QPUs 8-15
+    ReserveQpuBank1 = 0x414,
+    /// QPU Scheduler Control
+    QpuSchedCtrl = 0x418,
 
-    pub const V3D_SRQPC: usize = 0x430; // QPU User Program Request Program Address
-    pub const V3D_SRQUA: usize = 0x434; // QPU User Program Request Uniforms Address
-    pub const V3D_SRQUL: usize = 0x438; // QPU User Program Request Uniforms Length
-    pub const V3D_SRQCS: usize = 0x43c; // QPU User Program Request Control and Status
+    // these are awful and should be probably broken out into their own enum to keep their names
+    // from being a novel
+    /// QPU User Program Request Program Address
+    QpuUserProgReqProgAddr = 0x430,
+    /// QPU User Program Request Uniforms Address
+    QpuUserProgReqUniformsAddr = 0x434,
+    /// QPU User Program Request Uniforms Length
+    QpuUserProgReqUniformsLen = 0x438,
+    /// QPU User Program Request Control and Status
+    QpuUserProgReqCS = 0x43c,
 
-    pub const V3D_VPACNTL: usize = 0x500; // VPM Allocator Control
-    pub const V3D_VPMBASE: usize = 0x504; // VPM base (user) memory reservation
+    /// VPM Allocator Control
+    VpmAllocCtrl = 0x500,
+    /// VPM base (user) memory reservation
+    VpmBase = 0x504,
 
-    pub const V3D_PCTRC: usize = 0x670; // Performance Counter Clear
-    pub const V3D_PCTRE: usize = 0x674; // Performance Counter Enables
+    /// Performance Counter Clear
+    PerfCntrClr = 0x670,
+    /// Performance Counter Enables
+    PerfCntrEnable = 0x674,
 
-    pub const V3D_PCTR0: usize = 0x680; // Performance Counter Count 0
-    pub const V3D_PCTRS0: usize = 0x684; // Performance Counter Mapping 0
-    pub const V3D_PCTR1: usize = 0x688; // Performance Counter Count 1
-    pub const V3D_PCTRS1: usize = 0x68c; // Performance Counter Mapping 1
-    pub const V3D_PCTR2: usize = 0x690; // Performance Counter Count 2
-    pub const V3D_PCTRS2: usize = 0x694; // Performance Counter Mapping 2
-    pub const V3D_PCTR3: usize = 0x698; // Performance Counter Count 3
-    pub const V3D_PCTRS3: usize = 0x69c; // Performance Counter Mapping 3
-    pub const V3D_PCTR4: usize = 0x6a0; // Performance Counter Count 4
-    pub const V3D_PCTRS4: usize = 0x6a4; // Performance Counter Mapping 4
-    pub const V3D_PCTR5: usize = 0x6a8; // Performance Counter Count 5
-    pub const V3D_PCTRS5: usize = 0x6ac; // Performance Counter Mapping 5
-    pub const V3D_PCTR6: usize = 0x6b0; // Performance Counter Count 6
-    pub const V3D_PCTRS6: usize = 0x6b4; // Performance Counter Mapping 6
-    pub const V3D_PCTR7: usize = 0x6b8; // Performance Counter Count 7
-    pub const V3D_PCTRS7: usize = 0x6bc; // Performance Counter Mapping 7
-    pub const V3D_PCTR8: usize = 0x6c0; // Performance Counter Count 8
-    pub const V3D_PCTRS8: usize = 0x6c4; // Performance Counter Mapping 8
-    pub const V3D_PCTR9: usize = 0x6c8; // Performance Counter Count 9
-    pub const V3D_PCTRS9: usize = 0x6cc; // Performance Counter Mapping 9
-    pub const V3D_PCTR10: usize = 0x6d0; // Performance Counter Count 10
-    pub const V3D_PCTRS10: usize = 0x6d4; // Performance Counter Mapping 10
-    pub const V3D_PCTR11: usize = 0x6d8; // Performance Counter Count 11
-    pub const V3D_PCTRS11: usize = 0x6dc; // Performance Counter Mapping 11
-    pub const V3D_PCTR12: usize = 0x6e0; // Performance Counter Count 12
-    pub const V3D_PCTRS12: usize = 0x6e4; // Performance Counter Mapping 12
-    pub const V3D_PCTR13: usize = 0x6e8; // Performance Counter Count 13
-    pub const V3D_PCTRS13: usize = 0x6ec; // Performance Counter Mapping 13
-    pub const V3D_PCTR14: usize = 0x6f0; // Performance Counter Count 14
-    pub const V3D_PCTRS14: usize = 0x6f4; // Performance Counter Mapping 14
-    pub const V3D_PCTR15: usize = 0x6f8; // Performance Counter Count 15
-    pub const V3D_PCTRS15: usize = 0x6fc; // Performance Counter Mapping 15
+    /// Performance Counter Count 0
+    PerfCntrCnt0 = 0x680,
+    /// Performance Counter Mapping 0
+    PerfCntrMap0 = 0x684,
+    /// Performance Counter Count 1
+    PerfCntrCnt1 = 0x688,
+    /// Performance Counter Mapping 1
+    PerfCntrMap1 = 0x68c,
+    /// Performance Counter Count 2
+    PerfCntrCnt2 = 0x690,
+    /// Performance Counter Mapping 2
+    PerfCntrMap2 = 0x694,
+    /// Performance Counter Count 3
+    PerfCntrCnt3 = 0x698,
+    /// Performance Counter Mapping 3
+    PerfCntrMap3 = 0x69c,
+    /// Performance Counter Count 4
+    PerfCntrCnt4 = 0x6a0,
+    /// Performance Counter Mapping 4
+    PerfCntrMap4 = 0x6a4,
+    /// Performance Counter Count 5
+    PerfCntrCnt5 = 0x6a8,
+    /// Performance Counter Mapping 5
+    PerfCntrMap5 = 0x6ac,
+    /// Performance Counter Count 6
+    PerfCntrCnt6 = 0x6b0,
+    /// Performance Counter Mapping 6
+    PerfCntrMap6 = 0x6b4,
+    /// Performance Counter Count 7
+    PerfCntrCnt7 = 0x6b8,
+    /// Performance Counter Mapping 7
+    PerfCntrMap7 = 0x6bc,
+    /// Performance Counter Count 8
+    PerfCntrCnt8 = 0x6c0,
+    /// Performance Counter Mapping 8
+    PerfCntrMap8 = 0x6c4,
+    /// Performance Counter Count 9
+    PerfCntrCnt9 = 0x6c8,
+    /// Performance Counter Mapping 9
+    PerfCntrMap9 = 0x6cc,
+    /// Performance Counter Count 10
+    PerfCntrCnt10 = 0x6d0,
+    /// Performance Counter Mapping 10
+    PerfCntrMap10 = 0x6d4,
+    /// Performance Counter Count 11
+    PerfCntrCnt11 = 0x6d8,
+    /// Performance Counter Mapping 11
+    PerfCntrMap11 = 0x6dc,
+    /// Performance Counter Count 12
+    PerfCntrCnt12 = 0x6e0,
+    /// Performance Counter Mapping 12
+    PerfCntrMap12 = 0x6e4,
+    /// Performance Counter Count 13
+    PerfCntrCnt13 = 0x6e8,
+    /// Performance Counter Mapping 13
+    PerfCntrMap13 = 0x6ec,
+    /// Performance Counter Count 14
+    PerfCntrCnt14 = 0x6f0,
+    /// Performance Counter Mapping 14
+    PerfCntrMap14 = 0x6f4,
+    /// Performance Counter Count 15
+    PerfCntrCnt15 = 0x6f8,
+    /// Performance Counter Mapping 15
+    PerfCntrMap15 = 0x6fc,
 
-    pub const V3D_DBGE: usize = 0xf00; // PSE Error Signals
-    pub const V3D_FDBGO: usize = 0xf04; // FEP Overrun Error Signals
-    pub const V3D_FDBGB: usize = 0xf08; // FEP Interface Ready and Stall Signals, FEP Busy Signals
-    pub const V3D_FDBGR: usize = 0xf0c; // FEP Internal Ready Signals
-    pub const V3D_FDBGS: usize = 0xf10; // FEP Internal Stall Input Signals
+    /// PSE Error Signals
+    PseErrors = 0xf00,
+    /// FEP Overrun Error Signals
+    FepOverrunErrors = 0xf04,
+    /// FEP Interface Ready and Stall Signals, FEP Busy Signals
+    FepInterfaceStatus = 0xf08,
+    /// FEP Internal Ready Signals
+    FepInternalReadySignals = 0xf0c,
+    /// FEP Internal Stall Input Signals
+    FepInternalStallSignals = 0xf10,
 
-    pub const V3D_ERRSTAT: usize = 0xf20; // Miscellaneous Error Signals = VPM, VDW, VCD, VCM, L2C)
+    /// Miscellaneous Error Signals = VPM, VDW, VCD, VCM, L2C)
+    MiscErrors = 0xf20,
 }
 
 // Flags for allocate memory.
@@ -209,7 +290,7 @@ pub fn init() -> Result<(), V3DError> {
     let mut ret = [0u32; 13];
     ret[0] = (13 * mem::size_of::<u32>()) as u32;
     ret[1] = 0;
-    ret[2] = MailboxRegisters::MAILBOX_TAG_SET_CLOCK_RATE; //set clock
+    ret[2] = MailboxTag::SetClockRate as u32; //set clock
     ret[3] = 8;
     ret[4] = 8;
     ret[5] = 5; //channel
@@ -253,8 +334,8 @@ pub fn check_v3d_ident0() -> Result<(), V3DError> {
     let v3d_ptr = get_v3d_ptr();
     // Read the value at V3D_IDENT0 offset using volatile read
     let v3d_ident0_value =
-        unsafe { core::ptr::read_volatile(v3d_ptr.add(V3DRegisters::V3D_IDENT0 / 4)) }; // Divide by 4 because u32 is 4 bytes
-                                                                                        // Check if the value matches 0x02443356
+        unsafe { core::ptr::read_volatile(v3d_ptr.add(V3DRegisters::Ident0 as usize / 4)) }; // Divide by 4 because u32 is 4 bytes
+                                                                                             // Check if the value matches 0x02443356
     if v3d_ident0_value != 0x02443356 {
         return Err(V3DError::Check);
     }
@@ -268,7 +349,7 @@ fn get_current_gpu_clock_rate_message() -> mailbox::Message<GET_CURRENT_CLOCK_RA
     ret[0] = (GET_CURRENT_CLOCK_RATE_MESSAGE_SIZE * mem::size_of::<u32>()) as u32;
     ret[1] = MBOX_REQUEST;
 
-    ret[2] = MailboxRegisters::MAILBOX_TAG_GET_CLOCK_RATE; // set clock rate
+    ret[2] = MailboxTag::GetClockRate as u32; // set clock rate
     ret[3] = 8; // value buffer size in bytes
     ret[4] = 8; // clock id
     ret[5] = 0x5; // rate in hz
@@ -284,7 +365,7 @@ fn max_gpu_clock_rate_message() -> mailbox::Message<MAX_CLOCK_RATE_MESSAGE_SIZE>
     ret[1] = MBOX_REQUEST;
 
     // tag:
-    ret[2] = MailboxRegisters::MAILBOX_TAG_GET_MAX_CLOCK_RATE; // get serial number command
+    ret[2] = MailboxTag::GetMaxClockRate as u32; // get serial number command
     ret[3] = 8; // value buffer size in bytes
     ret[4] = 8; // :b 31 clear: request, | b31 set: response b30-b0: value length in bytes
 

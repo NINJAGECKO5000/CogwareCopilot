@@ -40,111 +40,173 @@ const FB_VIRTUAL_OFFSET_TAG: u32 = 0x48009;
 const FB_VIRTUAL_OFFSET_X: u32 = 0;
 const FB_VIRTUAL_OFFSET_Y: u32 = 0;
 
-
-pub struct MailboxRegisters;
-
 #[allow(dead_code)]
-impl MailboxRegisters{
-pub const MAILBOX_TAG_GET_VERSION:u32 = 0x00000001; // Get firmware revision
+#[repr(u32)]
+pub enum MailboxTag {
+    /// Get firmware revision
+    GetVersion = 0x00000001,
 
-/* Hardware info commands */
-pub const MAILBOX_TAG_GET_BOARD_MODEL: u32 = 0x00010001; // Get board model
-pub const MAILBOX_TAG_GET_BOARD_REVISION: u32 = 0x00010002; // Get board revision
-pub const MAILBOX_TAG_GET_BOARD_MAC_ADDRESS: u32 = 0x00010003; // Get board MAC address
-pub const MAILBOX_TAG_GET_BOARD_SERIAL: u32 = 0x00010004; // Get board serial
-pub const MAILBOX_TAG_GET_ARM_MEMORY: u32 = 0x00010005; // Get ARM memory
-pub const MAILBOX_TAG_GET_VC_MEMORY: u32 = 0x00010006; // Get VC memory
-pub const MAILBOX_TAG_GET_CLOCKS: u32 = 0x00010007; // Get clocks
+    /* Hardware info commands */
+    /// Get board model
+    GetBoardModel = 0x00010001,
+    /// Get board revision
+    GetBoardRevision = 0x00010002,
+    /// Get board MAC address
+    GetBoardMacAddress = 0x00010003,
+    /// Get board serial
+    GetBoardSerial = 0x00010004,
+    /// Get ARM memory
+    GetArmMemory = 0x00010005,
+    /// Get VC memory
+    GetVcMemory = 0x00010006,
+    /// Get clocks
+    GetClocks = 0x00010007,
 
-/* Power commands */
-pub const MAILBOX_TAG_GET_POWER_STATE: u32 = 0x00020001; // Get power state
-pub const MAILBOX_TAG_GET_TIMING: u32 = 0x00020002; // Get timing
-pub const MAILBOX_TAG_SET_POWER_STATE: u32 = 0x00028001; // Set power state
+    /* Power commands */
+    /// Get power state
+    GetPowerState = 0x00020001,
+    /// Get timing
+    GetTiming = 0x00020002,
+    /// Set power state
+    SetPowerState = 0x00028001,
 
-/* GPIO commands */
-pub const MAILBOX_TAG_GET_GET_GPIO_STATE: u32 = 0x00030041; // Get GPIO state
-pub const MAILBOX_TAG_SET_GPIO_STATE: u32 = 0x00038041; // Set GPIO state
+    /* GPIO commands */
+    /// Get GPIO state
+    GetGetGpioState = 0x00030041,
+    /// Set GPIO state
+    SetGpioState = 0x00038041,
 
-/* Clock commands */
-pub const MAILBOX_TAG_GET_CLOCK_STATE: u32 = 0x00030001; // Get clock state
-pub const MAILBOX_TAG_GET_CLOCK_RATE: u32 = 0x00030002; // Get clock rate
-pub const MAILBOX_TAG_GET_MAX_CLOCK_RATE: u32 = 0x00030004; // Get max clock rate
-pub const MAILBOX_TAG_GET_MIN_CLOCK_RATE: u32 = 0x00030007; // Get min clock rate
-pub const MAILBOX_TAG_GET_TURBO: u32 = 0x00030009; // Get turbo
+    /* Clock commands */
+    /// Get clock state
+    GetClockState = 0x00030001,
+    /// Get clock rate
+    GetClockRate = 0x00030002,
+    /// Get max clock rate
+    GetMaxClockRate = 0x00030004,
+    /// Get min clock rate
+    GetMinClockRate = 0x00030007,
+    /// Get turbo
+    GetTurbo = 0x00030009,
 
-pub const MAILBOX_TAG_SET_CLOCK_STATE: u32 = 0x00038001; // Set clock state
-pub const MAILBOX_TAG_SET_CLOCK_RATE: u32 = 0x00038002; // Set clock rate
-pub const MAILBOX_TAG_SET_TURBO: u32 = 0x00038009; // Set turbo
+    /// Set clock state
+    SetClockState = 0x00038001,
+    /// Set clock rate
+    SetClockRate = 0x00038002,
+    /// Set turbo
+    SetTurbo = 0x00038009,
 
-/* Voltage commands */
-pub const MAILBOX_TAG_GET_VOLTAGE: u32 = 0x00030003; // Get voltage
-pub const MAILBOX_TAG_GET_MAX_VOLTAGE: u32 = 0x00030005; // Get max voltage
-pub const MAILBOX_TAG_GET_MIN_VOLTAGE: u32 = 0x00030008; // Get min voltage
+    /* Voltage commands */
+    /// Get voltage
+    GetVoltage = 0x00030003,
+    /// Get max voltage
+    GetMaxVoltage = 0x00030005,
+    /// Get min voltage
+    GetMinVoltage = 0x00030008,
 
-pub const MAILBOX_TAG_SET_VOLTAGE: u32 = 0x00038003; // Set voltage
+    /// Set voltage
+    SetVoltage = 0x00038003,
 
-/* Temperature commands */
-pub const MAILBOX_TAG_GET_TEMPERATURE: u32 = 0x00030006; // Get temperature
-pub const MAILBOX_TAG_GET_MAX_TEMPERATURE: u32 = 0x0003000A; // Get max temperature
+    /* Temperature commands */
+    /// Get temperature
+    GetTemperature = 0x00030006,
+    /// Get max temperature
+    GetMaxTemperature = 0x0003000A,
 
-/* pub const Memory commands */
-pub const MAILBOX_TAG_ALLOCATE_MEMORY: u32 = 0x0003000C; // Allocate Memory
-pub const MAILBOX_TAG_LOCK_MEMORY: u32 = 0x0003000D; // Lock memory
-pub const MAILBOX_TAG_UNLOCK_MEMORY: u32 = 0x0003000E; // Unlock memory
-pub const MAILBOX_TAG_RELEASE_MEMORY: u32 = 0x0003000F; // Release Memory
+    /* Memory commands */
+    /// Allocate Memory
+    AllocateMemory = 0x0003000C,
+    /// Lock memory
+    LockMemory = 0x0003000D,
+    /// Unlock memory
+    UnlockMemory = 0x0003000E,
+    /// Release Memory
+    ReleaseMemory = 0x0003000F,
 
-/* Execute code commands */
-pub const MAILBOX_TAG_EXECUTE_CODE: u32 = 0x00030010; // Execute code
+    /// Execute code
+    ExecuteCode = 0x00030010,
 
-/* QPU control commands */
-pub const MAILBOX_TAG_EXECUTE_QPU: u32 = 0x00030011; // Execute code on QPU
-pub const MAILBOX_TAG_ENABLE_QPU: u32 = 0x00030012; // QPU enable
+    /* QPU control commands */
+    /// Execute code on QPU
+    ExecuteQpu = 0x00030011,
+    /// QPU enable
+    EnableQpu = 0x00030012,
 
-/* Displaymax commands */
-pub const MAILBOX_TAG_GET_DISPMANX_HANDLE: u32 = 0x00030014; // Get displaymax handle
-pub const MAILBOX_TAG_GET_EDID_BLOCK: u32 = 0x00030020; // Get HDMI EDID block
+    /* Displaymax commands */
+    /// Get displaymax handle
+    GetDispmanxHandle = 0x00030014,
+    /// Get HDMI EDID block
+    GetEdidBlock = 0x00030020,
 
-/* SD Card commands */
-pub const MAILBOX_GET_SDHOST_CLOCK: u32 = 0x00030042; // Get SD Card EMCC clock
-pub const MAILBOX_SET_SDHOST_CLOCK: u32 = 0x00038042; // Set SD Card EMCC clock
+    /* SD Card commands */
+    /// Get SD Card EMCC clock
+    MailboxGetSdhostClock = 0x00030042,
+    /// Set SD Card EMCC clock
+    MailboxSetSdhostClock = 0x00038042,
 
-/* Framebuffer commands */
-pub const MAILBOX_TAG_ALLOCATE_FRAMEBUFFER: u32 = 0x00040001; // Allocate Framebuffer address
-pub const MAILBOX_TAG_BLANK_SCREEN: u32 = 0x00040002; // Blank screen
-pub const MAILBOX_TAG_GET_PHYSICAL_WIDTH_HEIGHT: u32 = 0x00040003; // Get physical screen width/height
-pub const MAILBOX_TAG_GET_VIRTUAL_WIDTH_HEIGHT: u32 = 0x00040004; // Get virtual screen width/height
-pub const MAILBOX_TAG_GET_COLOUR_DEPTH: u32 = 0x00040005; // Get screen colour depth
-pub const MAILBOX_TAG_GET_PIXEL_ORDER: u32 = 0x00040006; // Get screen pixel order
-pub const MAILBOX_TAG_GET_ALPHA_MODE: u32 = 0x00040007; // Get screen alpha mode
-pub const MAILBOX_TAG_GET_PITCH: u32 = 0x00040008; // Get screen line to line pitch
-pub const MAILBOX_TAG_GET_VIRTUAL_OFFSET: u32 = 0x00040009; // Get screen virtual offset
-pub const MAILBOX_TAG_GET_OVERSCAN: u32 = 0x0004000A; // Get screen overscan value
-pub const MAILBOX_TAG_GET_PALETTE: u32 = 0x0004000B; // Get screen palette
+    /* Framebuffer commands */
+    /// Allocate Framebuffer address
+    AllocateFramebuffer = 0x00040001,
+    /// Blank screen
+    BlankScreen = 0x00040002,
+    /// Get physical screen width/height
+    GetPhysicalWidthHeight = 0x00040003,
+    /// Get virtual screen width/height
+    GetVirtualWidthHeight = 0x00040004,
+    /// Get screen colour depth
+    GetColourDepth = 0x00040005,
+    /// Get screen pixel order
+    GetPixelOrder = 0x00040006,
+    /// Get screen alpha mode
+    GetAlphaMode = 0x00040007,
+    /// Get screen line to line pitch
+    GetPitch = 0x00040008,
+    /// Get screen virtual offset
+    GetVirtualOffset = 0x00040009,
+    /// Get screen overscan value
+    GetOverscan = 0x0004000A,
+    /// Get screen palette
+    GetPalette = 0x0004000B,
 
-pub const MAILBOX_TAG_RELEASE_FRAMEBUFFER: u32 = 0x00048001; // Release Framebuffer address
-pub const MAILBOX_TAG_SET_PHYSICAL_WIDTH_HEIGHT: u32 = 0x00048003; // Set physical screen width/heigh
-pub const MAILBOX_TAG_SET_VIRTUAL_WIDTH_HEIGHT: u32 = 0x00048004; // Set virtual screen width/height
-pub const MAILBOX_TAG_SET_COLOUR_DEPTH: u32 = 0x00048005; // Set screen colour depth
-pub const MAILBOX_TAG_SET_PIXEL_ORDER: u32 = 0x00048006; // Set screen pixel order
-pub const MAILBOX_TAG_SET_ALPHA_MODE: u32 = 0x00048007; // Set screen alpha mode
-pub const MAILBOX_TAG_SET_VIRTUAL_OFFSET: u32 = 0x00048009; // Set screen virtual offset
-pub const MAILBOX_TAG_SET_OVERSCAN: u32 = 0x0004800A; // Set screen overscan value
-pub const MAILBOX_TAG_SET_PALETTE: u32 = 0x0004800B; // Set screen palette
-pub const MAILBOX_TAG_SET_VSYNC: u32 = 0x0004800E; // Set screen VSync
-pub const MAILBOX_TAG_SET_BACKLIGHT: u32 = 0x0004800F; // Set screen backlight
+    /// Release Framebuffer address
+    ReleaseFramebuffer = 0x00048001,
+    /// Set physical screen width/heigh
+    SetPhysicalWidthHeight = 0x00048003,
+    /// Set virtual screen width/height
+    SetVirtualWidthHeight = 0x00048004,
+    /// Set screen colour depth
+    SetColourDepth = 0x00048005,
+    /// Set screen pixel order
+    SetPixelOrder = 0x00048006,
+    /// Set screen alpha mode
+    SetAlphaMode = 0x00048007,
+    /// Set screen virtual offset
+    SetVirtualOffset = 0x00048009,
+    /// Set screen overscan value
+    SetOverscan = 0x0004800A,
+    /// Set screen palette
+    SetPalette = 0x0004800B,
+    /// Set screen VSync
+    SetVsync = 0x0004800E,
+    /// Set screen backlight
+    SetBacklight = 0x0004800F,
 
-/* VCHIQ commands */
-pub const MAILBOX_TAG_VCHIQ_INIT: u32 = 0x00048010; // Enable VCHIQ
+    /* VCHIQ commands */
+    /// Enable VCHIQ
+    VchiqInit = 0x00048010,
 
-/* Config commands */
-pub const MAILBOX_TAG_GET_COMMAND_LINE: u32 = 0x00050001; // Get command line
+    /* Config commands */
+    /// Get command line
+    GetCommandLine = 0x00050001,
 
-/* Shared resource management commands */
-pub const MAILBOX_TAG_GET_DMA_CHANNELS: u32 = 0x00060001; // Get DMA channels
+    /* Shared resource management commands */
+    /// Get DMA channels
+    GetDmaChannels = 0x00060001,
 
-/* Cursor commands */
-pub const MAILBOX_TAG_SET_CURSOR_INFO: u32 = 0x00008010; // Set cursor info
-pub const MAILBOX_TAG_SET_CURSOR_STATE: u32 = 0x00008011; // Set cursor state
+    /* Cursor commands */
+    /// Set cursor info
+    SetCursorInfo = 0x00008010,
+    /// Set cursor state
+    SetCursorState = 0x00008011,
 }
 
 #[derive(Debug)]
@@ -421,8 +483,11 @@ pub fn set_clock_speed(new_clock: u32) -> Result<(), MailboxError> {
     let rate = &message[6];
     let rate2 = *rate;
     info!("R: {:?}", rate);
-    info!("New rate for ARM CORE is: {:?}Ghz", rate2 as f64 / 1_000_000_000.0);
-    
+    info!(
+        "New rate for ARM CORE is: {:?}Ghz",
+        rate2 as f64 / 1_000_000_000.0
+    );
+
     let message2 = get_current_clock_rate_message();
 
     send_message_sync(Channel::PROP, &message2).map_err(|_| MailboxError::SetClockSpeed)?;
@@ -430,7 +495,10 @@ pub fn set_clock_speed(new_clock: u32) -> Result<(), MailboxError> {
     let rate = &message2[6];
     let rate2 = *rate;
     info!("R: {:?}", rate);
-    info!("Rate Readback to check ARM CORE is: {:?}Ghz", rate2 as f64 / 1_000_000_000.0);
+    info!(
+        "Rate Readback to check ARM CORE is: {:?}Ghz",
+        rate2 as f64 / 1_000_000_000.0
+    );
     Ok(())
 }
 
@@ -463,7 +531,10 @@ pub fn max_clock_speed() -> Result<u32, MailboxError> {
     let rate = &message2[6];
     let rate2 = *rate;
     info!("R: {:?}", rate);
-    info!("Current ARM CORE rate is: {:?}Ghz", rate2 as f64 / 1_000_000_000.0);
+    info!(
+        "Current ARM CORE rate is: {:?}Ghz",
+        rate2 as f64 / 1_000_000_000.0
+    );
 
     let message = max_clock_rate_message();
 
@@ -472,7 +543,10 @@ pub fn max_clock_speed() -> Result<u32, MailboxError> {
     let rate = &message[6];
     let rate2 = *rate;
     info!("R: {:?}", rate);
-    info!("Max clock speed for ARM CORE is: {:?}Ghz", rate2 as f64 / 1_000_000_000.0);
+    info!(
+        "Max clock speed for ARM CORE is: {:?}Ghz",
+        rate2 as f64 / 1_000_000_000.0
+    );
     Ok(rate2)
 }
 
@@ -483,7 +557,7 @@ fn get_set_virtual_framebuffer_offset_message(
     let mut ret = [0u32; SET_VIRTUAL_FRAMEBUFFER_OFFSET_MESSAGE_SIZE];
     ret[0] = (SET_VIRTUAL_FRAMEBUFFER_OFFSET_MESSAGE_SIZE * mem::size_of::<u32>()) as u32;
     ret[1] = MBOX_REQUEST;
-    ret[2] = MailboxRegisters::MAILBOX_TAG_SET_VIRTUAL_OFFSET; // set virtual buffer offset
+    ret[2] = MailboxTag::SetVirtualOffset as u32; // set virtual buffer offset
     ret[3] = 2 * mem::size_of::<u32>() as u32; // value buffer size in bytes
     ret[4] = 0; // :b 31 clear: request, | b31 set: response b30-b0: value length in bytes
     ret[5] = 0; // x in pixels
@@ -499,7 +573,7 @@ fn get_test_virtual_fb_offset_message(
     let mut ret = [0u32; TEST_SET_VIRTUAL_FRAMEBUFFER_OFFSET_MESSAGE_SIZE];
     ret[0] = (TEST_SET_VIRTUAL_FRAMEBUFFER_OFFSET_MESSAGE_SIZE * mem::size_of::<u32>()) as u32;
     ret[1] = MBOX_REQUEST;
-    ret[2] = MailboxRegisters::MAILBOX_TAG_SET_VIRTUAL_OFFSET; // set virtual buffer offset
+    ret[2] = MailboxTag::SetVirtualOffset as u32; // set virtual buffer offset
     ret[3] = 2 * mem::size_of::<u32>() as u32; // value buffer size in bytes
     ret[4] = 0; // :b 31 clear: request, | b31 set: response b30-b0: value length in bytes
     ret[5] = 0; // x in pixels
@@ -513,7 +587,7 @@ fn get_current_clock_rate_message() -> Message<GET_CURRENT_CLOCK_RATE_MESSAGE_SI
     ret[0] = (GET_CURRENT_CLOCK_RATE_MESSAGE_SIZE * mem::size_of::<u32>()) as u32;
     ret[1] = MBOX_REQUEST;
 
-    ret[2] = MailboxRegisters::MAILBOX_TAG_GET_CLOCK_RATE; // set clock rate
+    ret[2] = MailboxTag::GetClockRate as u32; // set clock rate
     ret[3] = 8; // value buffer size in bytes
     ret[4] = 8; // clock id
     ret[5] = 0x3; // rate in hz
@@ -528,7 +602,7 @@ fn get_set_clock_rate_message(new_clock_hz: u32) -> Message<GET_CLOCK_RATE_MESSA
     ret[0] = (GET_CLOCK_RATE_MESSAGE_SIZE * mem::size_of::<u32>()) as u32;
     ret[1] = MBOX_REQUEST;
 
-    ret[2] = MailboxRegisters::MAILBOX_TAG_SET_CLOCK_RATE; // set clock rate
+    ret[2] = MailboxTag::SetClockRate as u32; // set clock rate
     ret[3] = 8; // value buffer size in bytes
     ret[4] = 8; // clock id
     ret[5] = 0x3; // rate in hz
@@ -545,7 +619,7 @@ fn max_clock_rate_message() -> Message<MAX_CLOCK_RATE_MESSAGE_SIZE> {
     ret[1] = MBOX_REQUEST;
 
     // tag:
-    ret[2] = MailboxRegisters::MAILBOX_TAG_GET_MAX_CLOCK_RATE; // get serial number command
+    ret[2] = MailboxTag::GetMaxClockRate as u32; // get serial number command
     ret[3] = 8; // value buffer size in bytes
     ret[4] = 8; // :b 31 clear: request, | b31 set: response b30-b0: value length in bytes
 
@@ -655,7 +729,7 @@ fn mailbox_tag_message<const N: usize>(
             core::hint::spin_loop();
         }
         LicmaHandler::enable_mailbox();
-        while! LicmaHandler::mailbox_pending(){}
+        while !LicmaHandler::mailbox_pending() {}
         if raw_mailbox.get_read() == final_addr as u32 {
             return match transfer.response_status() {
                 ReqResp::Request => Err(MailboxError::SendMessage(String::from(
