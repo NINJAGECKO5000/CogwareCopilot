@@ -7,180 +7,181 @@ use crate::{
 const RPI_IO_BASE_ADDR: usize = 0x3F00_0000; // Replace with actual base address
 const V3D_OFFSET: usize = 0xc00000;
 
-#[allow(dead_code)]
-#[repr(u32)]
-pub enum V3DRegisters {
+pub struct V3DRegisters;
+
+#[allow(dead_code, non_upper_case_globals)]
+impl V3DRegisters {
     /// V3D Identification 0 (V3D block identity)
-    Ident0 = 0x000,
+    pub const Ident0: u32 = 0x000;
     /// V3D Identification 1 (V3D Configuration A)
-    Ident1 = 0x004,
+    pub const Ident1: u32 = 0x004;
     /// V3D Identification 1 (V3D Configuration B)
-    Ident2 = 0x008,
+    pub const Ident2: u32 = 0x008;
 
     /// Scratch Register
-    Scratch = 0x010,
+    pub const Scratch: u32 = 0x010;
 
     /// 2 Cache Control
-    L2CacheCtrl = 0x020,
+    pub const L2CacheCtrl: u32 = 0x020;
     /// Slices Cache Control
-    SliceCacheCtrl = 0x024,
+    pub const SliceCacheCtrl: u32 = 0x024;
 
     /// Interrupt Control
-    InterruptCtrl = 0x030,
+    pub const InterruptCtrl: u32 = 0x030;
     /// Interrupt Enables
-    InterruptEnable = 0x034,
+    pub const InterruptEnable: u32 = 0x034;
     /// Interrupt Disables
-    InterruptDisable = 0x038,
+    pub const InterruptDisable: u32 = 0x038;
 
     /// Control List Executor Thread 0 Control and Status.
-    ControlList0CS = 0x100,
+    pub const ControlList0CS: u32 = 0x100;
     /// Control List Executor Thread 1 Control and Status.
-    ControlList1CS = 0x104,
+    pub const ControlList1CS: u32 = 0x104;
     /// Control List Executor Thread 0 End Address.
-    ControlList0EA = 0x108,
+    pub const ControlList0EA: u32 = 0x108;
     /// Control List Executor Thread 1 End Address.
-    ControlList1EA = 0x10c,
+    pub const ControlList1EA: u32 = 0x10c;
     /// Control List Executor Thread 0 Current Address.
-    ControlList0CA = 0x110,
+    pub const ControlList0CA: u32 = 0x110;
     /// Control List Executor Thread 1 Current Address.
-    ControlList1CA = 0x114,
+    pub const ControlList1CA: u32 = 0x114;
     /// Control List Executor Thread 0 Return Address.
-    ControlList00RA0 = 0x118,
+    pub const ControlList00RA0: u32 = 0x118;
     /// Control List Executor Thread 1 Return Address.
-    ControlList01RA0 = 0x11c,
+    pub const ControlList01RA0: u32 = 0x11c;
     /// Control List Executor Thread 0 List Counter
-    ControlList0LC = 0x120,
+    pub const ControlList0LC: u32 = 0x120;
     /// Control List Executor Thread 1 List Counter
-    ControlList1LC = 0x124,
+    pub const ControlList1LC: u32 = 0x124;
     /// Control List Executor Thread 0 Primitive List Counter
-    ControlList0PC = 0x128,
+    pub const ControlList0PC: u32 = 0x128;
     /// Control List Executor Thread 1 Primitive List Counter
-    ControlList1PC = 0x12c,
+    pub const ControlList1PC: u32 = 0x12c;
 
     /// V3D Pipeline Control and Status
-    PipelineCS = 0x130,
+    pub const PipelineCS: u32 = 0x130;
     /// Binning Mode Flush Count
-    BinningFlushCnt = 0x134,
+    pub const BinningFlushCnt: u32 = 0x134;
     /// Rendering Mode Frame Count
-    RenderFrameCnt = 0x138,
+    pub const RenderFrameCnt: u32 = 0x138;
 
     /// Current Address of Binning Memory Pool
-    BinningMemPool = 0x300,
+    pub const BinningMemPool: u32 = 0x300;
     /// Remaining Size of Binning Memory Pool
-    FreeBinningMemPool = 0x304,
+    pub const FreeBinningMemPool: u32 = 0x304;
     /// Address of Overspill Binning Memory Block
-    BinningOverspill = 0x308,
+    pub const BinningOverspill: u32 = 0x308;
     /// Size of Overspill Binning Memory Block
-    BinningOverspillSize = 0x30c,
+    pub const BinningOverspillSize: u32 = 0x30c;
     /// Binner Debug
-    BinnerDebug = 0x310,
+    pub const BinnerDebug: u32 = 0x310;
 
     /// Reserve QPUs 0-7
-    ReserveQpuBank0 = 0x410,
+    pub const ReserveQpuBank0: u32 = 0x410;
     /// Reserve QPUs 8-15
-    ReserveQpuBank1 = 0x414,
+    pub const ReserveQpuBank1: u32 = 0x414;
     /// QPU Scheduler Control
-    QpuSchedCtrl = 0x418,
+    pub const QpuSchedCtrl: u32 = 0x418;
 
     // these are awful and should be probably broken out into their own enum to keep their names
     // from being a novel
     /// QPU User Program Request Program Address
-    QpuUserProgReqProgAddr = 0x430,
+    pub const QpuUserProgReqProgAddr: u32 = 0x430;
     /// QPU User Program Request Uniforms Address
-    QpuUserProgReqUniformsAddr = 0x434,
+    pub const QpuUserProgReqUniformsAddr: u32 = 0x434;
     /// QPU User Program Request Uniforms Length
-    QpuUserProgReqUniformsLen = 0x438,
+    pub const QpuUserProgReqUniformsLen: u32 = 0x438;
     /// QPU User Program Request Control and Status
-    QpuUserProgReqCS = 0x43c,
+    pub const QpuUserProgReqCS: u32 = 0x43c;
 
     /// VPM Allocator Control
-    VpmAllocCtrl = 0x500,
+    pub const VpmAllocCtrl: u32 = 0x500;
     /// VPM base (user) memory reservation
-    VpmBase = 0x504,
+    pub const VpmBase: u32 = 0x504;
 
     /// Performance Counter Clear
-    PerfCntrClr = 0x670,
+    pub const PerfCntrClr: u32 = 0x670;
     /// Performance Counter Enables
-    PerfCntrEnable = 0x674,
+    pub const PerfCntrEnable: u32 = 0x674;
 
     /// Performance Counter Count 0
-    PerfCntrCnt0 = 0x680,
+    pub const PerfCntrCnt0: u32 = 0x680;
     /// Performance Counter Mapping 0
-    PerfCntrMap0 = 0x684,
+    pub const PerfCntrMap0: u32 = 0x684;
     /// Performance Counter Count 1
-    PerfCntrCnt1 = 0x688,
+    pub const PerfCntrCnt1: u32 = 0x688;
     /// Performance Counter Mapping 1
-    PerfCntrMap1 = 0x68c,
+    pub const PerfCntrMap1: u32 = 0x68c;
     /// Performance Counter Count 2
-    PerfCntrCnt2 = 0x690,
+    pub const PerfCntrCnt2: u32 = 0x690;
     /// Performance Counter Mapping 2
-    PerfCntrMap2 = 0x694,
+    pub const PerfCntrMap2: u32 = 0x694;
     /// Performance Counter Count 3
-    PerfCntrCnt3 = 0x698,
+    pub const PerfCntrCnt3: u32 = 0x698;
     /// Performance Counter Mapping 3
-    PerfCntrMap3 = 0x69c,
+    pub const PerfCntrMap3: u32 = 0x69c;
     /// Performance Counter Count 4
-    PerfCntrCnt4 = 0x6a0,
+    pub const PerfCntrCnt4: u32 = 0x6a0;
     /// Performance Counter Mapping 4
-    PerfCntrMap4 = 0x6a4,
+    pub const PerfCntrMap4: u32 = 0x6a4;
     /// Performance Counter Count 5
-    PerfCntrCnt5 = 0x6a8,
+    pub const PerfCntrCnt5: u32 = 0x6a8;
     /// Performance Counter Mapping 5
-    PerfCntrMap5 = 0x6ac,
+    pub const PerfCntrMap5: u32 = 0x6ac;
     /// Performance Counter Count 6
-    PerfCntrCnt6 = 0x6b0,
+    pub const PerfCntrCnt6: u32 = 0x6b0;
     /// Performance Counter Mapping 6
-    PerfCntrMap6 = 0x6b4,
+    pub const PerfCntrMap6: u32 = 0x6b4;
     /// Performance Counter Count 7
-    PerfCntrCnt7 = 0x6b8,
+    pub const PerfCntrCnt7: u32 = 0x6b8;
     /// Performance Counter Mapping 7
-    PerfCntrMap7 = 0x6bc,
+    pub const PerfCntrMap7: u32 = 0x6bc;
     /// Performance Counter Count 8
-    PerfCntrCnt8 = 0x6c0,
+    pub const PerfCntrCnt8: u32 = 0x6c0;
     /// Performance Counter Mapping 8
-    PerfCntrMap8 = 0x6c4,
+    pub const PerfCntrMap8: u32 = 0x6c4;
     /// Performance Counter Count 9
-    PerfCntrCnt9 = 0x6c8,
+    pub const PerfCntrCnt9: u32 = 0x6c8;
     /// Performance Counter Mapping 9
-    PerfCntrMap9 = 0x6cc,
+    pub const PerfCntrMap9: u32 = 0x6cc;
     /// Performance Counter Count 10
-    PerfCntrCnt10 = 0x6d0,
+    pub const PerfCntrCnt10: u32 = 0x6d0;
     /// Performance Counter Mapping 10
-    PerfCntrMap10 = 0x6d4,
+    pub const PerfCntrMap10: u32 = 0x6d4;
     /// Performance Counter Count 11
-    PerfCntrCnt11 = 0x6d8,
+    pub const PerfCntrCnt11: u32 = 0x6d8;
     /// Performance Counter Mapping 11
-    PerfCntrMap11 = 0x6dc,
+    pub const PerfCntrMap11: u32 = 0x6dc;
     /// Performance Counter Count 12
-    PerfCntrCnt12 = 0x6e0,
+    pub const PerfCntrCnt12: u32 = 0x6e0;
     /// Performance Counter Mapping 12
-    PerfCntrMap12 = 0x6e4,
+    pub const PerfCntrMap12: u32 = 0x6e4;
     /// Performance Counter Count 13
-    PerfCntrCnt13 = 0x6e8,
+    pub const PerfCntrCnt13: u32 = 0x6e8;
     /// Performance Counter Mapping 13
-    PerfCntrMap13 = 0x6ec,
+    pub const PerfCntrMap13: u32 = 0x6ec;
     /// Performance Counter Count 14
-    PerfCntrCnt14 = 0x6f0,
+    pub const PerfCntrCnt14: u32 = 0x6f0;
     /// Performance Counter Mapping 14
-    PerfCntrMap14 = 0x6f4,
+    pub const PerfCntrMap14: u32 = 0x6f4;
     /// Performance Counter Count 15
-    PerfCntrCnt15 = 0x6f8,
+    pub const PerfCntrCnt15: u32 = 0x6f8;
     /// Performance Counter Mapping 15
-    PerfCntrMap15 = 0x6fc,
+    pub const PerfCntrMap15: u32 = 0x6fc;
 
     /// PSE Error Signals
-    PseErrors = 0xf00,
+    pub const PseErrors: u32 = 0xf00;
     /// FEP Overrun Error Signals
-    FepOverrunErrors = 0xf04,
-    /// FEP Interface Ready and Stall Signals, FEP Busy Signals
-    FepInterfaceStatus = 0xf08,
+    pub const FepOverrunErrors: u32 = 0xf04;
+    /// FEP Interface Ready and Stall Signals; FEP Busy Signals
+    pub const FepInterfaceStatus: u32 = 0xf08;
     /// FEP Internal Ready Signals
-    FepInternalReadySignals = 0xf0c,
+    pub const FepInternalReadySignals: u32 = 0xf0c;
     /// FEP Internal Stall Input Signals
-    FepInternalStallSignals = 0xf10,
+    pub const FepInternalStallSignals: u32 = 0xf10;
 
-    /// Miscellaneous Error Signals = VPM, VDW, VCD, VCM, L2C)
-    MiscErrors = 0xf20,
+    /// Miscellaneous Error Signals: u32 = VPM; VDW, VCD, VCM, L2C)
+    pub const MiscErrors: u32 = 0xf20;
 }
 
 // Flags for allocate memory.
@@ -195,7 +196,7 @@ pub enum V3DRegisters {
     MEM_FLAG_HINT_PERMALOCK = 1 << 6, /* Likely to be locked for long periods of time. */
 }
 
-/* primitive typo\e in the GL pipline */
+/* primitive type in the GL pipline */
 enum PrimType {
     // is this needed?
     PRIM_POINT = 0,
@@ -248,7 +249,17 @@ enum GLcommands {
     GL_TILE_RENDER_CONFIG = 113,
     GL_CLEAR_COLORS = 114,
     GL_TILE_COORDINATES = 115,
-}*/
+}
+
+impl Deref for GLcommands {
+    type Target = u32;
+
+    fn deref(&self) -> Self::Target {
+        self as u32
+    }
+}
+
+*/
 //commented for now since not being used, but here when needed
 
 #[derive(Debug)]
@@ -290,7 +301,7 @@ pub fn init() -> Result<(), V3DError> {
     let mut ret = [0u32; 13];
     ret[0] = (13 * mem::size_of::<u32>()) as u32;
     ret[1] = 0;
-    ret[2] = MailboxTag::SetClockRate as u32; //set clock
+    ret[2] = MailboxTag::SetClockRate; //set clock
     ret[3] = 8;
     ret[4] = 8;
     ret[5] = 5; //channel
@@ -343,13 +354,12 @@ pub fn check_v3d_ident0() -> Result<(), V3DError> {
     Ok(())
 }
 
-const GET_CURRENT_CLOCK_RATE_MESSAGE_SIZE: usize = 9;
-fn get_current_gpu_clock_rate_message() -> mailbox::Message<GET_CURRENT_CLOCK_RATE_MESSAGE_SIZE> {
-    let mut ret = [0u32; GET_CURRENT_CLOCK_RATE_MESSAGE_SIZE];
-    ret[0] = (GET_CURRENT_CLOCK_RATE_MESSAGE_SIZE * mem::size_of::<u32>()) as u32;
+fn get_current_gpu_clock_rate_message() -> mailbox::Message<9> {
+    let mut ret = [0u32; 9];
+    ret[0] = (9 * mem::size_of::<u32>()) as u32;
     ret[1] = MBOX_REQUEST;
 
-    ret[2] = MailboxTag::GetClockRate as u32; // set clock rate
+    ret[2] = MailboxTag::GetClockRate; // set clock rate
     ret[3] = 8; // value buffer size in bytes
     ret[4] = 8; // clock id
     ret[5] = 0x5; // rate in hz
@@ -358,19 +368,116 @@ fn get_current_gpu_clock_rate_message() -> mailbox::Message<GET_CURRENT_CLOCK_RA
     mailbox::Message::new(ret)
 }
 
-const MAX_CLOCK_RATE_MESSAGE_SIZE: usize = 9;
-fn max_gpu_clock_rate_message() -> mailbox::Message<MAX_CLOCK_RATE_MESSAGE_SIZE> {
-    let mut ret = [0u32; MAX_CLOCK_RATE_MESSAGE_SIZE];
-    ret[0] = (MAX_CLOCK_RATE_MESSAGE_SIZE * mem::size_of::<u32>()) as u32;
+fn max_gpu_clock_rate_message() -> mailbox::Message<9> {
+    let mut ret = [0u32; 9];
+    ret[0] = (9 * mem::size_of::<u32>()) as u32;
     ret[1] = MBOX_REQUEST;
 
     // tag:
-    ret[2] = MailboxTag::GetMaxClockRate as u32; // get serial number command
+    ret[2] = MailboxTag::GetMaxClockRate; // get serial number command
     ret[3] = 8; // value buffer size in bytes
     ret[4] = 8; // :b 31 clear: request, | b31 set: response b30-b0: value length in bytes
 
     ret[5] = 0x5; // clock id
     ret[6] = 0; // used by the response.
     ret[7] = LAST_TAG;
+    mailbox::Message::new(ret)
+}
+
+fn V3D_mem_alloc(size: u32, align: u32, flags: u32) -> mailbox::Message<10> {
+    let mut ret = [0u32; 10];
+    ret[0] = (10 * mem::size_of::<u32>()) as u32;
+    ret[1] = MBOX_REQUEST;
+    ret[2] = MailboxTag::AllocateMemory;
+    ret[3] = 12;
+    ret[4] = 12;
+    ret[5] = size;
+    ret[6] = align;
+    ret[7] = flags;
+    ret[8] = 0; //response
+    ret[9] = LAST_TAG;
+    mailbox::Message::new(ret)
+}
+
+fn V3D_mem_free(val: u32) -> mailbox::Message<7> {
+    let mut ret = [0u32; 7];
+    ret[0] = (7 * mem::size_of::<u32>()) as u32;
+    ret[1] = MBOX_REQUEST;
+    ret[2] = MailboxTag::ReleaseMemory;
+    ret[3] = 4;
+    ret[4] = 4;
+    ret[5] = val;
+    ret[6] = LAST_TAG;
+    mailbox::Message::new(ret)
+}
+
+fn V3D_mem_lock(val: u32) -> mailbox::Message<8> {
+    let mut ret = [0u32; 8];
+    ret[0] = (8 * mem::size_of::<u32>()) as u32;
+    ret[1] = MBOX_REQUEST;
+    ret[2] = MailboxTag::LockMemory;
+    ret[3] = 4;
+    ret[4] = 4;
+    ret[5] = val;
+    ret[6] = 0; //response
+    ret[7] = LAST_TAG;
+    mailbox::Message::new(ret)
+}
+
+fn V3D_mem_unlock(val: u32) -> mailbox::Message<7> {
+    let mut ret = [0u32; 7];
+    ret[0] = (7 * mem::size_of::<u32>()) as u32;
+    ret[1] = MBOX_REQUEST;
+    ret[2] = MailboxTag::UnlockMemory;
+    ret[3] = 4;
+    ret[4] = 4;
+    ret[5] = val;
+    ret[6] = LAST_TAG;
+    mailbox::Message::new(ret)
+}
+
+fn V3D_execute_code(
+    code: u32,
+    r0: u32,
+    r1: u32,
+    r2: u32,
+    r3: u32,
+    r4: u32,
+    r5: u32,
+) -> mailbox::Message<13> {
+    let mut ret = [0u32; 13];
+    ret[0] = (13 * mem::size_of::<u32>()) as u32;
+    ret[1] = MBOX_REQUEST;
+    ret[2] = MailboxTag::ExecuteCode;
+    ret[3] = 28;
+    ret[4] = 28;
+    ret[5] = code;
+    ret[6] = r0;
+    ret[7] = r1;
+    ret[8] = r2;
+    ret[9] = r3;
+    ret[10] = r4;
+    ret[11] = r5;
+    ret[12] = LAST_TAG;
+    mailbox::Message::new(ret)
+}
+
+fn V3D_execute_qpu(
+    num_qpus: u32,
+    control: u32,
+    noflush: u32,
+    timeout: u32,
+) -> mailbox::Message<10> {
+    let mut ret = [0u32; 10];
+    ret[0] = (10 * mem::size_of::<u32>()) as u32;
+    ret[1] = MBOX_REQUEST;
+    ret[2] = MailboxTag::ExecuteQpu;
+    ret[3] = 16;
+    ret[4] = 16;
+    ret[5] = num_qpus;
+    ret[6] = control;
+    ret[7] = noflush;
+    ret[8] = timeout;
+    ret[9] = LAST_TAG;
     mailbox::Message::new(ret)
 }

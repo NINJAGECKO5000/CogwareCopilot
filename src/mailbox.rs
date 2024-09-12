@@ -40,173 +40,174 @@ const FB_VIRTUAL_OFFSET_TAG: u32 = 0x48009;
 const FB_VIRTUAL_OFFSET_X: u32 = 0;
 const FB_VIRTUAL_OFFSET_Y: u32 = 0;
 
-#[allow(dead_code)]
-#[repr(u32)]
-pub enum MailboxTag {
+pub struct MailboxTag;
+
+#[allow(dead_code, non_upper_case_globals)]
+impl MailboxTag {
     /// Get firmware revision
-    GetVersion = 0x00000001,
+    pub const GetVersion: u32 = 0x00000001;
 
     /* Hardware info commands */
     /// Get board model
-    GetBoardModel = 0x00010001,
+    pub const GetBoardModel: u32 = 0x00010001;
     /// Get board revision
-    GetBoardRevision = 0x00010002,
+    pub const GetBoardRevision: u32 = 0x00010002;
     /// Get board MAC address
-    GetBoardMacAddress = 0x00010003,
+    pub const GetBoardMacAddress: u32 = 0x00010003;
     /// Get board serial
-    GetBoardSerial = 0x00010004,
+    pub const GetBoardSerial: u32 = 0x00010004;
     /// Get ARM memory
-    GetArmMemory = 0x00010005,
+    pub const GetArmMemory: u32 = 0x00010005;
     /// Get VC memory
-    GetVcMemory = 0x00010006,
+    pub const GetVcMemory: u32 = 0x00010006;
     /// Get clocks
-    GetClocks = 0x00010007,
+    pub const GetClocks: u32 = 0x00010007;
 
     /* Power commands */
     /// Get power state
-    GetPowerState = 0x00020001,
+    pub const GetPowerState: u32 = 0x00020001;
     /// Get timing
-    GetTiming = 0x00020002,
+    pub const GetTiming: u32 = 0x00020002;
     /// Set power state
-    SetPowerState = 0x00028001,
+    pub const SetPowerState: u32 = 0x00028001;
 
     /* GPIO commands */
     /// Get GPIO state
-    GetGetGpioState = 0x00030041,
+    pub const GetGetGpioState: u32 = 0x00030041;
     /// Set GPIO state
-    SetGpioState = 0x00038041,
+    pub const SetGpioState: u32 = 0x00038041;
 
     /* Clock commands */
     /// Get clock state
-    GetClockState = 0x00030001,
+    pub const GetClockState: u32 = 0x00030001;
     /// Get clock rate
-    GetClockRate = 0x00030002,
+    pub const GetClockRate: u32 = 0x00030002;
     /// Get max clock rate
-    GetMaxClockRate = 0x00030004,
+    pub const GetMaxClockRate: u32 = 0x00030004;
     /// Get min clock rate
-    GetMinClockRate = 0x00030007,
+    pub const GetMinClockRate: u32 = 0x00030007;
     /// Get turbo
-    GetTurbo = 0x00030009,
+    pub const GetTurbo: u32 = 0x00030009;
 
     /// Set clock state
-    SetClockState = 0x00038001,
+    pub const SetClockState: u32 = 0x00038001;
     /// Set clock rate
-    SetClockRate = 0x00038002,
+    pub const SetClockRate: u32 = 0x00038002;
     /// Set turbo
-    SetTurbo = 0x00038009,
+    pub const SetTurbo: u32 = 0x00038009;
 
     /* Voltage commands */
     /// Get voltage
-    GetVoltage = 0x00030003,
+    pub const GetVoltage: u32 = 0x00030003;
     /// Get max voltage
-    GetMaxVoltage = 0x00030005,
+    pub const GetMaxVoltage: u32 = 0x00030005;
     /// Get min voltage
-    GetMinVoltage = 0x00030008,
+    pub const GetMinVoltage: u32 = 0x00030008;
 
     /// Set voltage
-    SetVoltage = 0x00038003,
+    pub const SetVoltage: u32 = 0x00038003;
 
     /* Temperature commands */
     /// Get temperature
-    GetTemperature = 0x00030006,
+    pub const GetTemperature: u32 = 0x00030006;
     /// Get max temperature
-    GetMaxTemperature = 0x0003000A,
+    pub const GetMaxTemperature: u32 = 0x0003000A;
 
     /* Memory commands */
     /// Allocate Memory
-    AllocateMemory = 0x0003000C,
+    pub const AllocateMemory: u32 = 0x0003000C;
     /// Lock memory
-    LockMemory = 0x0003000D,
+    pub const LockMemory: u32 = 0x0003000D;
     /// Unlock memory
-    UnlockMemory = 0x0003000E,
+    pub const UnlockMemory: u32 = 0x0003000E;
     /// Release Memory
-    ReleaseMemory = 0x0003000F,
+    pub const ReleaseMemory: u32 = 0x0003000F;
 
     /// Execute code
-    ExecuteCode = 0x00030010,
+    pub const ExecuteCode: u32 = 0x00030010;
 
     /* QPU control commands */
     /// Execute code on QPU
-    ExecuteQpu = 0x00030011,
+    pub const ExecuteQpu: u32 = 0x00030011;
     /// QPU enable
-    EnableQpu = 0x00030012,
+    pub const EnableQpu: u32 = 0x00030012;
 
     /* Displaymax commands */
     /// Get displaymax handle
-    GetDispmanxHandle = 0x00030014,
+    pub const GetDispmanxHandle: u32 = 0x00030014;
     /// Get HDMI EDID block
-    GetEdidBlock = 0x00030020,
+    pub const GetEdidBlock: u32 = 0x00030020;
 
     /* SD Card commands */
     /// Get SD Card EMCC clock
-    MailboxGetSdhostClock = 0x00030042,
+    pub const MailboxGetSdhostClock: u32 = 0x00030042;
     /// Set SD Card EMCC clock
-    MailboxSetSdhostClock = 0x00038042,
+    pub const MailboxSetSdhostClock: u32 = 0x00038042;
 
     /* Framebuffer commands */
     /// Allocate Framebuffer address
-    AllocateFramebuffer = 0x00040001,
+    pub const AllocateFramebuffer: u32 = 0x00040001;
     /// Blank screen
-    BlankScreen = 0x00040002,
+    pub const BlankScreen: u32 = 0x00040002;
     /// Get physical screen width/height
-    GetPhysicalWidthHeight = 0x00040003,
+    pub const GetPhysicalWidthHeight: u32 = 0x00040003;
     /// Get virtual screen width/height
-    GetVirtualWidthHeight = 0x00040004,
+    pub const GetVirtualWidthHeight: u32 = 0x00040004;
     /// Get screen colour depth
-    GetColourDepth = 0x00040005,
+    pub const GetColourDepth: u32 = 0x00040005;
     /// Get screen pixel order
-    GetPixelOrder = 0x00040006,
+    pub const GetPixelOrder: u32 = 0x00040006;
     /// Get screen alpha mode
-    GetAlphaMode = 0x00040007,
+    pub const GetAlphaMode: u32 = 0x00040007;
     /// Get screen line to line pitch
-    GetPitch = 0x00040008,
+    pub const GetPitch: u32 = 0x00040008;
     /// Get screen virtual offset
-    GetVirtualOffset = 0x00040009,
+    pub const GetVirtualOffset: u32 = 0x00040009;
     /// Get screen overscan value
-    GetOverscan = 0x0004000A,
+    pub const GetOverscan: u32 = 0x0004000A;
     /// Get screen palette
-    GetPalette = 0x0004000B,
+    pub const GetPalette: u32 = 0x0004000B;
 
     /// Release Framebuffer address
-    ReleaseFramebuffer = 0x00048001,
+    pub const ReleaseFramebuffer: u32 = 0x00048001;
     /// Set physical screen width/heigh
-    SetPhysicalWidthHeight = 0x00048003,
+    pub const SetPhysicalWidthHeight: u32 = 0x00048003;
     /// Set virtual screen width/height
-    SetVirtualWidthHeight = 0x00048004,
+    pub const SetVirtualWidthHeight: u32 = 0x00048004;
     /// Set screen colour depth
-    SetColourDepth = 0x00048005,
+    pub const SetColourDepth: u32 = 0x00048005;
     /// Set screen pixel order
-    SetPixelOrder = 0x00048006,
+    pub const SetPixelOrder: u32 = 0x00048006;
     /// Set screen alpha mode
-    SetAlphaMode = 0x00048007,
+    pub const SetAlphaMode: u32 = 0x00048007;
     /// Set screen virtual offset
-    SetVirtualOffset = 0x00048009,
+    pub const SetVirtualOffset: u32 = 0x00048009;
     /// Set screen overscan value
-    SetOverscan = 0x0004800A,
+    pub const SetOverscan: u32 = 0x0004800A;
     /// Set screen palette
-    SetPalette = 0x0004800B,
+    pub const SetPalette: u32 = 0x0004800B;
     /// Set screen VSync
-    SetVsync = 0x0004800E,
+    pub const SetVsync: u32 = 0x0004800E;
     /// Set screen backlight
-    SetBacklight = 0x0004800F,
+    pub const SetBacklight: u32 = 0x0004800F;
 
     /* VCHIQ commands */
     /// Enable VCHIQ
-    VchiqInit = 0x00048010,
+    pub const VchiqInit: u32 = 0x00048010;
 
     /* Config commands */
     /// Get command line
-    GetCommandLine = 0x00050001,
+    pub const GetCommandLine: u32 = 0x00050001;
 
     /* Shared resource management commands */
     /// Get DMA channels
-    GetDmaChannels = 0x00060001,
+    pub const GetDmaChannels: u32 = 0x00060001;
 
     /* Cursor commands */
     /// Set cursor info
-    SetCursorInfo = 0x00008010,
+    pub const SetCursorInfo: u32 = 0x00008010;
     /// Set cursor state
-    SetCursorState = 0x00008011,
+    pub const SetCursorState: u32 = 0x00008011;
 }
 
 #[derive(Debug)]
@@ -573,7 +574,7 @@ fn get_test_virtual_fb_offset_message(
     let mut ret = [0u32; TEST_SET_VIRTUAL_FRAMEBUFFER_OFFSET_MESSAGE_SIZE];
     ret[0] = (TEST_SET_VIRTUAL_FRAMEBUFFER_OFFSET_MESSAGE_SIZE * mem::size_of::<u32>()) as u32;
     ret[1] = MBOX_REQUEST;
-    ret[2] = MailboxTag::SetVirtualOffset as u32; // set virtual buffer offset
+    ret[2] = MailboxTag::SetVirtualOffset; // set virtual buffer offset
     ret[3] = 2 * mem::size_of::<u32>() as u32; // value buffer size in bytes
     ret[4] = 0; // :b 31 clear: request, | b31 set: response b30-b0: value length in bytes
     ret[5] = 0; // x in pixels
@@ -587,7 +588,7 @@ fn get_current_clock_rate_message() -> Message<GET_CURRENT_CLOCK_RATE_MESSAGE_SI
     ret[0] = (GET_CURRENT_CLOCK_RATE_MESSAGE_SIZE * mem::size_of::<u32>()) as u32;
     ret[1] = MBOX_REQUEST;
 
-    ret[2] = MailboxTag::GetClockRate as u32; // set clock rate
+    ret[2] = MailboxTag::GetClockRate; // set clock rate
     ret[3] = 8; // value buffer size in bytes
     ret[4] = 8; // clock id
     ret[5] = 0x3; // rate in hz
@@ -602,7 +603,7 @@ fn get_set_clock_rate_message(new_clock_hz: u32) -> Message<GET_CLOCK_RATE_MESSA
     ret[0] = (GET_CLOCK_RATE_MESSAGE_SIZE * mem::size_of::<u32>()) as u32;
     ret[1] = MBOX_REQUEST;
 
-    ret[2] = MailboxTag::SetClockRate as u32; // set clock rate
+    ret[2] = MailboxTag::SetClockRate; // set clock rate
     ret[3] = 8; // value buffer size in bytes
     ret[4] = 8; // clock id
     ret[5] = 0x3; // rate in hz
@@ -619,7 +620,7 @@ fn max_clock_rate_message() -> Message<MAX_CLOCK_RATE_MESSAGE_SIZE> {
     ret[1] = MBOX_REQUEST;
 
     // tag:
-    ret[2] = MailboxTag::GetMaxClockRate as u32; // get serial number command
+    ret[2] = MailboxTag::GetMaxClockRate; // get serial number command
     ret[3] = 8; // value buffer size in bytes
     ret[4] = 8; // :b 31 clear: request, | b31 set: response b30-b0: value length in bytes
 
