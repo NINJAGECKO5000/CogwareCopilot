@@ -95,12 +95,12 @@ pub fn init() -> Result<(), V3DError> {
     let message = max_gpu_clock_rate_message();
     send_message_sync(mailbox::Channel::PROP, &message).map_err(|_| V3DError::MaxClockRequest)?;
     let message = message.clone();
-    let rate = &message[6];
-    let rate2 = *rate;
+    let rate = message.get_idx(6);
+    // let rate2 = *rate;
     info!("R: {:?}", rate);
     info!(
         "Max clock speed for GPU CORE is: {:?}Mhz",
-        rate2 as f64 / 1_000_000.0
+        rate as f64 / 1_000_000.0 // rate2 as f64 / 1_000_000.0
     );
     let mut ret = [0u32; 13];
     ret[0] = (13 * mem::size_of::<u32>()) as u32;
@@ -109,7 +109,8 @@ pub fn init() -> Result<(), V3DError> {
     ret[3] = 8;
     ret[4] = 8;
     ret[5] = 5; //channel
-    ret[6] = rate2; //V3D Clock rate
+    ret[6] = rate; //V3D Clock rate
+                   // ret[6] = rate2; //V3D Clock rate
     ret[2] = 0x00030012; // enable QPU
     ret[3] = 4;
     ret[4] = 4;
@@ -126,12 +127,12 @@ pub fn init() -> Result<(), V3DError> {
     send_message_sync(mailbox::Channel::PROP, &message2)
         .map_err(|_| V3DError::CurrentClockRequest)?;
     let message2 = message2.clone();
-    let rate = &message2[6];
-    let rate2 = *rate;
+    let rate = message2.get_idx(6);
+    // let rate2 = *rate;
     info!("R: {:?}", rate);
     info!(
         "Rate Readback to check GPU CORE is: {:?}Mhz",
-        rate2 as f64 / 1_000_000.0
+        rate as f64 / 1_000_000.0 // rate2 as f64 / 1_000_000.0
     );
 
     Ok(())

@@ -169,13 +169,13 @@ pub const LAST_TAG: u32 = 0;
 #[derive(Debug, Copy, Clone)]
 pub struct Message<const T: usize>([u32; T]);
 
-impl<const T: usize> Deref for Message<T> {
-    type Target = [u32; T];
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
+// impl<const T: usize> Deref for Message<T> {
+//     type Target = [u32; T];
+//
+//     fn deref(&self) -> &Self::Target {
+//         &self.0
+//     }
+// }
 
 impl<const T: usize> Message<T> {
     pub const fn new(message: [u32; T]) -> Message<T> {
@@ -184,6 +184,10 @@ impl<const T: usize> Message<T> {
 
     pub fn to_mail(&self, channel: &Channel) -> u32 {
         (((self.0.as_ptr() as *const () as usize) & !0x0F) | (*channel as usize & 0xF)) as u32
+    }
+
+    pub fn get_idx(&self, idx: usize) -> u32 {
+        unsafe { core::ptr::read_volatile(&self.0[idx] as *const u32) }
     }
 
     pub fn response_status(&self) -> ReqResp {
@@ -202,9 +206,11 @@ pub fn query_board_serial() -> Result<u64, MailboxError> {
 
     send_message_sync(Channel::PROP, &message).map_err(|_| MailboxError::QuerySerial)?;
     // return if send_message_sync(Channel::PROP, &message) {
-    info!("Serial number is: {:#04x}/{:#04x}", message[5], message[4]);
-    let b = message[4].to_ne_bytes();
-    let c = message[5].to_ne_bytes();
+    let b = message.get_idx(4);
+    let c = message.get_idx(5);
+    info!("Serial number is: {:#04x}/{:#04x}", b, c);
+    let b = b.to_ne_bytes();
+    let c = c.to_ne_bytes();
     let single = [b[0], b[1], b[2], b[3], c[0], c[1], c[2], c[3]];
     info!("Single: {:?}", single);
     //     Some(u64::from_ne_bytes(single))
@@ -274,26 +280,28 @@ pub fn lfb_init<'a: 'static>() -> Result<FrameBuffer, MailboxError> {
     let message = lfb_message();
     send_message_sync(Channel::PROP, &message)?;
 
-    if message[28] == 0 {
-        return Err(MailboxError::LfbInit { addr: message[28] });
+    let addr = message.get_idx(28);
+
+    if addr == 0 {
+        return Err(MailboxError::LfbInit { addr });
     }
 
     // convert GPU address to ARM address
     // let fb_ptr_raw = (message[28] & 0x3FFFFFFF) as usize;
     // info!("fb_ptr_raw: {}", fb_ptr_raw);
-    let fb_ptr_raw = (message[28] & 0x3FFFFFFF) as *mut u32;
+    let fb_ptr_raw = (message.get_idx(28) & 0x3FFFFFFF) as *mut u32;
     info!("fb_ptr_raw: {:?}", fb_ptr_raw);
 
     // get actual physical width
-    let width = unsafe { core::ptr::read_volatile(addr_of!(message[5])) };
+    let width = message.get_idx(5);
     // get actual physical height
-    let height = unsafe { core::ptr::read_volatile(addr_of!(message[6])) };
+    let height = message.get_idx(6);
     // get number of bytes per line:
-    let pitch = unsafe { core::ptr::read_volatile(addr_of!(message[33])) };
+    let pitch = message.get_idx(33);
     // get the pixel depth TODO: is this correct? Missin from: https://github.com/bztsrc/raspi3-tutorial/blob/master/09_framebuffer/lfb.c
-    let depth = unsafe { core::ptr::read_volatile(addr_of!(message[20])) };
+    let depth = message.get_idx(20);
     // get the actual channel order. brg = 0, rgb > 0
-    let is_rgb = unsafe { core::ptr::read_volatile(addr_of!(message[24])) } != 0;
+    let is_rgb = message.get_idx(24) != 0;
 
     // let casted = fb_ptr_raw as *const u32 as *mut u32;
     // let casted = unsafe { &mut *casted };
@@ -321,9 +329,9 @@ pub fn set_clock_speed(new_clock: u32) -> Result<(), MailboxError> {
     let message = get_set_clock_rate_message(new_clock);
     send_message_sync(Channel::PROP, &message).map_err(|_| MailboxError::SetClockSpeed)?;
     // let message = message.clone();
-    let rate = unsafe { core::ptr::read_volatile(addr_of!(message[6])) };
+    let rate = message.get_idx(6);
     // let rate2 = *rate;
-    info!("R: {:?}", rate);
+    //info!("R: {:?}", rate);
     info!(
         "New rate for ARM CORE is: {:?}Ghz",
         rate as f64 / 1_000_000_000.0
@@ -332,13 +340,13 @@ pub fn set_clock_speed(new_clock: u32) -> Result<(), MailboxError> {
     let message2 = get_current_clock_rate_message();
 
     send_message_sync(Channel::PROP, &message2).map_err(|_| MailboxError::SetClockSpeed)?;
-    let message2 = message2.clone();
-    let rate = &message2[6];
-    let rate2 = *rate;
-    info!("R: {:?}", rate);
+    // let message2 = message2.clone();
+    let rate = message2.get_idx(6);
+    // let rate2 = *rate;
+    //info!("R: {:?}", rate);
     info!(
         "Rate Readback to check ARM CORE is: {:?}Ghz",
-        rate2 as f64 / 1_000_000_000.0
+        rate as f64 / 1_000_000_000.0 // rate2 as f64 / 1_000_000_000.0
     );
     Ok(())
 }
@@ -356,8 +364,8 @@ pub fn test_set_virtual_framebuffer_offset(offset: u32) -> Result<(), MailboxErr
 
     send_message_sync(Channel::PROP, &message).map_err(|_| MailboxError::SetVirtFB)?;
 
-    let offset_x = message[5];
-    let offset_y = message[6];
+    let offset_x = message.get_idx(5);
+    let offset_y = message.get_idx(6);
     info!(
         " requested offset: {} new offset: {}, y{}",
         offset, offset_x, offset_y
@@ -369,26 +377,27 @@ pub fn max_clock_speed() -> Result<u32, MailboxError> {
 
     send_message_sync(Channel::PROP, &message2).map_err(|_| MailboxError::GetMaxSpeed)?;
     let message2 = message2.clone();
-    let rate = &message2[6];
-    let rate2 = *rate;
-    info!("R: {:?}", rate);
+    let rate = message2.get_idx(6);
+    // let rate2 = *rate;
+    //info!("R: {:?}", rate);
     info!(
         "Current ARM CORE rate is: {:?}Ghz",
-        rate2 as f64 / 1_000_000_000.0
+        rate as f64 / 1_000_000_000.0 // rate2 as f64 / 1_000_000_000.0
     );
 
     let message = max_clock_rate_message();
 
     send_message_sync(Channel::PROP, &message).map_err(|_| MailboxError::GetMaxSpeed)?;
     let message = message.clone();
-    let rate = &message[6];
-    let rate2 = *rate;
-    info!("R: {:?}", rate);
+    let rate = message.get_idx(6);
+    // let rate2 = *rate;
+    //info!("R: {:?}", rate);
     info!(
         "Max clock speed for ARM CORE is: {:?}Ghz",
-        rate2 as f64 / 1_000_000_000.0
+        rate as f64 / 1_000_000_000.0 // rate2 as f64 / 1_000_000_000.0
     );
-    Ok(rate2)
+    Ok(rate)
+    // Ok(rate2)
 }
 
 const SET_VIRTUAL_FRAMEBUFFER_OFFSET_MESSAGE_SIZE: usize = 8;
@@ -600,5 +609,6 @@ pub enum Channel {
     BTNS = 5,
     TOUCH = 6,
     COUNT = 7,
+
     PROP = 8,
 }
