@@ -1,6 +1,7 @@
 use crate::framebuffer::FrameBuffer; // videocoremboxbase: 3F00B880 resp-successful: 0
 use crate::{info, mailbox::ReqResp::ResponseSuccessful};
 use core::ops::Deref;
+use core::ptr::addr_of;
 use core::{mem, ops::BitAnd};
 // use log::info;
 // use space_invaders::{SCREEN_HEIGHT, SCREEN_WIDTH}; // we hard set these here for now, should
@@ -278,8 +279,8 @@ impl RawMailbox {
         self.read.get()
     }
 
-    pub(crate) fn write_address(&mut self, address: usize) {
-        self.write.set(address as u32)
+    pub(crate) fn write_address(&mut self, address: u32) {
+        self.write.set(address)
     }
 
     fn get_status(&self) -> u32 {
@@ -346,6 +347,10 @@ impl<const T: usize> Deref for Message<T> {
 impl<const T: usize> Message<T> {
     pub fn new(message: [u32; T]) -> Message<T> {
         Message(message)
+    }
+
+    pub fn to_mail(&self, channel: &Channel) -> u32 {
+        (((self.0.as_ptr() as *const () as usize) & !0x0F) | (*channel as usize & 0xF)) as u32
     }
 
     pub fn response_status(&self) -> ReqResp {
@@ -441,24 +446,26 @@ pub fn lfb_init<'a: 'static>() -> Result<FrameBuffer, MailboxError> {
     }
 
     // convert GPU address to ARM address
-    let fb_ptr_raw = (message[28] & 0x3FFFFFFF) as usize;
-    info!("fb_ptr_raw: {}", fb_ptr_raw);
+    // let fb_ptr_raw = (message[28] & 0x3FFFFFFF) as usize;
+    // info!("fb_ptr_raw: {}", fb_ptr_raw);
+    let fb_ptr_raw = (message[28] & 0x3FFFFFFF) as *mut u32;
+    info!("fb_ptr_raw: {:?}", fb_ptr_raw);
 
     // get actual physical width
-    let width = message[5];
+    let width = unsafe { core::ptr::read_volatile(addr_of!(message[5])) };
     // get actual physical height
-    let height = message[6];
+    let height = unsafe { core::ptr::read_volatile(addr_of!(message[6])) };
     // get number of bytes per line:
-    let pitch = message[33];
+    let pitch = unsafe { core::ptr::read_volatile(addr_of!(message[33])) };
     // get the pixel depth TODO: is this correct? Missin from: https://github.com/bztsrc/raspi3-tutorial/blob/master/09_framebuffer/lfb.c
-    let depth = message[20];
+    let depth = unsafe { core::ptr::read_volatile(addr_of!(message[20])) };
     // get the actual channel order. brg = 0, rgb > 0
-    let is_rgb = message[24] != 0;
+    let is_rgb = unsafe { core::ptr::read_volatile(addr_of!(message[24])) } != 0;
 
-    let casted = fb_ptr_raw as *const u32 as *mut u32;
-    let casted = unsafe { &mut *casted };
+    // let casted = fb_ptr_raw as *const u32 as *mut u32;
+    // let casted = unsafe { &mut *casted };
     let framebuff: &mut [u32] =
-        unsafe { core::slice::from_raw_parts_mut(casted, TOTAL_FB_BUFFER_LEN) };
+        unsafe { core::slice::from_raw_parts_mut(fb_ptr_raw as *mut u32, TOTAL_FB_BUFFER_LEN) };
     let fb = FrameBuffer {
         framebuff,
         width,
@@ -480,13 +487,13 @@ pub fn lfb_init<'a: 'static>() -> Result<FrameBuffer, MailboxError> {
 pub fn set_clock_speed(new_clock: u32) -> Result<(), MailboxError> {
     let message = get_set_clock_rate_message(new_clock);
     send_message_sync(Channel::PROP, &message).map_err(|_| MailboxError::SetClockSpeed)?;
-    let message = message.clone();
-    let rate = &message[6];
-    let rate2 = *rate;
+    // let message = message.clone();
+    let rate = unsafe { core::ptr::read_volatile(addr_of!(message[6])) };
+    // let rate2 = *rate;
     info!("R: {:?}", rate);
     info!(
         "New rate for ARM CORE is: {:?}Ghz",
-        rate2 as f64 / 1_000_000_000.0
+        rate as f64 / 1_000_000_000.0
     );
 
     let message2 = get_current_clock_rate_message();
@@ -651,15 +658,17 @@ pub fn send_message_sync<const T: usize>(
     channel: Channel,
     message: &Message<T>,
 ) -> Result<(), MailboxError> {
-    let raw_ptr = message.as_ptr();
-    // This is needed because slices are fat pointers and I need to convert it to a thin pointer
-    // first.
-    let raw_ptr_addr = raw_ptr.cast::<usize>();
-    let raw_ptr_addr = raw_ptr_addr as usize;
-    // !0x0F is 1...10000
-    let addr_clear_last_4_bits = raw_ptr_addr.bitand(!0x0F);
-    let ch_clear_everything_but_last_4_vits = channel as usize & 0xF;
-    let final_addr = addr_clear_last_4_bits | ch_clear_everything_but_last_4_vits;
+    // let raw_ptr = message.as_ptr();
+    // // This is needed because slices are fat pointers and I need to convert it to a thin pointer
+    // // first.
+    // let raw_ptr_addr = raw_ptr.cast::<usize>();
+    // let raw_ptr_addr = raw_ptr_addr as usize;
+    // // !0x0F is 1...10000
+    // let addr_clear_last_4_bits = raw_ptr_addr.bitand(!0x0F);
+    // let ch_clear_everything_but_last_4_vits = channel as usize & 0xF;
+    // let final_addr = addr_clear_last_4_bits | ch_clear_everything_but_last_4_vits;
+    // let message_addr = message.0.as_ptr() as *const () as usize;
+    // let final_addr = (message_addr & !0x0F) | (channel as usize & 0xF);
 
     let raw_mailbox = RawMailbox::get();
 
@@ -668,7 +677,9 @@ pub fn send_message_sync<const T: usize>(
         core::hint::spin_loop();
     }
 
-    raw_mailbox.write_address(final_addr);
+    let addr = message.to_mail(&channel);
+
+    raw_mailbox.write_address(addr);
 
     // now wait for the response
     loop {
@@ -676,7 +687,7 @@ pub fn send_message_sync<const T: usize>(
         while raw_mailbox.is_empty() {
             core::hint::spin_loop();
         }
-        if raw_mailbox.get_read() == final_addr as u32 {
+        if raw_mailbox.get_read() == addr {
             return match message.response_status() {
                 ReqResp::Request => Err(MailboxError::SendMessage(String::from(
                     "Message still contains a request?!",
@@ -703,16 +714,17 @@ fn mailbox_tag_message<const N: usize>(
         ret[val + 2] = buf[val];
     }
     let transfer = Message(ret);
+    let final_addr = transfer.to_mail(&channel);
 
-    let raw_ptr = transfer.0.as_ptr();
-    // This is needed because slices are fat pointers and I need to convert it to a thin pointer
-    // first.
-    let raw_ptr_addr = raw_ptr.cast::<usize>();
-    let raw_ptr_addr = raw_ptr_addr as usize;
-    // !0x0F is 1...10000
-    let addr_clear_last_4_bits = raw_ptr_addr.bitand(!0x0F);
-    let ch_clear_everything_but_last_4_vits = channel as usize & 0xF;
-    let final_addr = addr_clear_last_4_bits | ch_clear_everything_but_last_4_vits;
+    // let raw_ptr = transfer.0.as_ptr();
+    // // This is needed because slices are fat pointers and I need to convert it to a thin pointer
+    // // first.
+    // let raw_ptr_addr = raw_ptr.cast::<usize>();
+    // let raw_ptr_addr = raw_ptr_addr as usize;
+    // // !0x0F is 1...10000
+    // let addr_clear_last_4_bits = raw_ptr_addr.bitand(!0x0F);
+    // let ch_clear_everything_but_last_4_vits = channel as usize & 0xF;
+    // let final_addr = addr_clear_last_4_bits | ch_clear_everything_but_last_4_vits;
 
     let raw_mailbox = RawMailbox::get();
 
