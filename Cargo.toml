@@ -1,5 +1,5 @@
 [package]
-name = "mingo"
+name = "cogware-kernel"
 version = "0.7.0"
 authors = ["Andre Richter <andre.o.richter@gmail.com>"]
 edition = "2021"
