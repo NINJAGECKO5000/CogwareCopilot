@@ -94,10 +94,10 @@ impl Deref for GLcommands {
 pub fn init() -> Result<(), V3DError> {
     let message = max_gpu_clock_rate_message();
     send_message_sync(mailbox::Channel::PROP, &message).map_err(|_| V3DError::MaxClockRequest)?;
-    let message = message.clone();
+    //let message = message.clone();
     let rate = message.get_idx(6);
     // let rate2 = *rate;
-    info!("R: {:?}", rate);
+    // info!("R: {:?}", rate);
     info!(
         "Max clock speed for GPU CORE is: {:?}Mhz",
         rate as f64 / 1_000_000.0 // rate2 as f64 / 1_000_000.0
@@ -126,10 +126,10 @@ pub fn init() -> Result<(), V3DError> {
     let message2 = get_current_gpu_clock_rate_message();
     send_message_sync(mailbox::Channel::PROP, &message2)
         .map_err(|_| V3DError::CurrentClockRequest)?;
-    let message2 = message2.clone();
+    // let message2 = message2.clone();
     let rate = message2.get_idx(6);
     // let rate2 = *rate;
-    info!("R: {:?}", rate);
+    // info!("R: {:?}", rate);
     info!(
         "Rate Readback to check GPU CORE is: {:?}Mhz",
         rate as f64 / 1_000_000.0 // rate2 as f64 / 1_000_000.0

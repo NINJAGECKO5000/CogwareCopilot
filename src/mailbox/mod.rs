@@ -376,7 +376,7 @@ pub fn max_clock_speed() -> Result<u32, MailboxError> {
     let message2 = get_current_clock_rate_message();
 
     send_message_sync(Channel::PROP, &message2).map_err(|_| MailboxError::GetMaxSpeed)?;
-    let message2 = message2.clone();
+    // let message2 = message2.clone();
     let rate = message2.get_idx(6);
     // let rate2 = *rate;
     //info!("R: {:?}", rate);
@@ -388,7 +388,7 @@ pub fn max_clock_speed() -> Result<u32, MailboxError> {
     let message = max_clock_rate_message();
 
     send_message_sync(Channel::PROP, &message).map_err(|_| MailboxError::GetMaxSpeed)?;
-    let message = message.clone();
+    // let message = message.clone();
     let rate = message.get_idx(6);
     // let rate2 = *rate;
     //info!("R: {:?}", rate);

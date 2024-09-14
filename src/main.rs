@@ -57,7 +57,7 @@ unsafe fn kernel_init() -> ! {
         set_clock_speed(max_clock_speed.unwrap()).unwrap();
         v3d::init().unwrap();
 
-        info!("initializing hvs");
+        // info!("initializing hvs");
         /*let (header, image) =
             qoi::decode_to_vec(BOOT_IMAGE_QOI).expect("Failed to decode boot image (wtf?)");
 
@@ -139,15 +139,18 @@ fn kernel_main() -> ! {
     info!("Root directory: {:#?}", root_dir);
 
     let mut cfg_file = root_dir
-        .open_file_in_dir("CONFIG.TXT", Mode::ReadOnly)
+        .open_file_in_dir("config.txt", Mode::ReadOnly)
         .expect("Failed to open CONFIG.TXT");
 
     let out = match cfg_file.read_to_string() {
-        Ok(f) => f,
+        Ok(f) => {
+            info!("SDTEST {:?}", f);
+            f
+        }
         Err(e) => format!("{:?}", e),
     };
 
-    info!("CONFIG.TXT:\n{}", out);
+    info!("CONFIG.TXT:\n{:?}", out);
 
     info!("Drivers loaded:");
     driver::driver_manager().enumerate();
