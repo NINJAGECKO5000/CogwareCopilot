@@ -143,14 +143,11 @@ fn kernel_main() -> ! {
         .expect("Failed to open CONFIG.TXT");
 
     let out = match cfg_file.read_to_string() {
-        Ok(f) => {
-            info!("SDTEST {:?}", f);
-            f
-        }
+        Ok(f) => f,
         Err(e) => format!("{:?}", e),
     };
 
-    info!("CONFIG.TXT:\n{:?}", out);
+    info!("CONFIG.TXT:\n{}", out);
 
     info!("Drivers loaded:");
     driver::driver_manager().enumerate();
