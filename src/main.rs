@@ -15,6 +15,7 @@ mod cpu;
 mod driver;
 mod fb_trait;
 mod framebuffer;
+mod gl;
 mod hvs;
 mod hyperpixel;
 mod mailbox;
