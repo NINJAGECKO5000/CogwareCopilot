@@ -19,7 +19,10 @@ const FILL_SHADER: [u32; 12] = [
     0x009E7000, 0x100009E7, // nop; nop; nop
 ];
 
-pub type Vc4Addr = u32;
+#[repr(transparent)]
+pub struct Vc4Addr(u32);
+
+// pub type Vc4Addr = u32;
 pub type GpuHandle = u32;
 
 pub struct Render {

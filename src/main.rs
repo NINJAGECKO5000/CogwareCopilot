@@ -9,24 +9,11 @@
 
 extern crate alloc;
 
-mod bsp;
-mod console;
-mod cpu;
-mod driver;
-mod fb_trait;
-mod framebuffer;
-mod gl;
-mod hvs;
-mod hyperpixel;
-mod mailbox;
-mod panic_wait;
-mod print;
-mod synchronization;
-mod time;
-mod v3d;
-use alloc::string::String;
+pub mod cpu;
+use cogware_kernel::*;
+use mailbox::{max_clock_speed, set_clock_speed};
 
-use crate::mailbox::{max_clock_speed, set_clock_speed};
+use alloc::string::String;
 use alloc::{format, vec::Vec};
 use bcm2837_hal::*;
 use bsp::memory::initialize_heap;
@@ -267,7 +254,7 @@ fn kernel_main() -> ! {
         info!("{:?}", dispgauge6);
         info!("{:?}", dispgauge7);
         info!("{:?}", dispgauge8);
-        info!("{:?}", dispgauge9);*/ 
+        info!("{:?}", dispgauge9);*/
         //^commented for V3D testing
         info!("Spinning for 1 second");
         time::time_manager().spin_for(Duration::from_secs(1));

@@ -4,7 +4,7 @@
 
 //! A panic handler that infinitely waits.
 
-use crate::{cpu, println};
+use crate::println;
 use core::panic::PanicInfo;
 
 //--------------------------------------------------------------------------------------------------
@@ -37,7 +37,9 @@ fn panic_prevent_reenter() {
         return;
     }
 
-    cpu::wait_forever()
+    loop {
+        aarch64_cpu::asm::wfe()
+    }
 }
 
 #[panic_handler]
@@ -64,5 +66,7 @@ fn panic(info: &PanicInfo) -> ! {
         column,
     );
 
-    cpu::wait_forever()
+    loop {
+        aarch64_cpu::asm::wfe()
+    }
 }

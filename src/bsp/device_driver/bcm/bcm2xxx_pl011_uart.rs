@@ -10,7 +10,7 @@
 //! - <https://developer.arm.com/documentation/ddi0183/latest>
 
 use crate::{
-    bsp::device_driver::common::MMIODerefWrapper, console, cpu, driver, synchronization,
+    bsp::device_driver::common::MMIODerefWrapper, console, driver, synchronization,
     synchronization::NullLock,
 };
 use core::fmt;
@@ -257,7 +257,7 @@ impl PL011UartInner {
     fn write_char(&mut self, c: char) {
         // Spin while TX FIFO full is set, waiting for an empty slot.
         while self.registers.FR.matches_all(FR::TXFF::SET) {
-            cpu::nop();
+            aarch64_cpu::asm::nop();
         }
 
         // Write the character to the buffer.
@@ -270,7 +270,7 @@ impl PL011UartInner {
     fn flush(&self) {
         // Spin until the busy bit is cleared.
         while self.registers.FR.matches_all(FR::BUSY::SET) {
-            cpu::nop();
+            aarch64_cpu::asm::nop();
         }
     }
 
@@ -285,7 +285,7 @@ impl PL011UartInner {
 
             // Otherwise, wait until a char was received.
             while self.registers.FR.matches_all(FR::RXFE::SET) {
-                cpu::nop();
+                aarch64_cpu::asm::nop();
             }
         }
 
