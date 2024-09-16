@@ -22,3 +22,10 @@ pub mod print;
 pub mod synchronization;
 pub mod time;
 pub mod v3d;
+
+#[macro_export]
+macro_rules! bail {
+    ($e:expr) => {
+        return Err($e)
+    };
+}
