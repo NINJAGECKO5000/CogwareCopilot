@@ -1,3 +1,4 @@
+use crate::bail;
 use crate::framebuffer::FrameBuffer; // videocoremboxbase: 3F00B880 resp-successful: 0
 use crate::{info, mailbox::ReqResp::ResponseSuccessful};
 use core::mem;
@@ -283,7 +284,7 @@ pub fn lfb_init<'a: 'static>() -> Result<FrameBuffer, MailboxError> {
     let addr = message.get_idx(28);
 
     if addr == 0 {
-        return Err(MailboxError::LfbInit { addr });
+        bail!(MailboxError::LfbInit { addr });
     }
 
     // convert GPU address to ARM address
