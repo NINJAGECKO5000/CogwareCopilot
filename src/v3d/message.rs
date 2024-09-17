@@ -49,21 +49,20 @@ impl MailboxMessage {
         payload: [8, 8, 0x3, 0, LAST_TAG, 0],
     };
 
-    pub const CurrentGpuClockRate: MailboxTagMessage<6> = MailboxTagMessage {
-        size: (9 * mem::size_of::<u32>() as u32),
+    pub const CurrentGpuClockRate: MailboxTagMessage<5> = MailboxTagMessage {
+        size: (8 * mem::size_of::<u32>() as u32),
         status: 0,
         tag: MailboxTag::GetClockRate,
         payload: [
             8, // value buffer size in bytes
             8, 0x5, // clock id
             0,
-            0,
             LAST_TAG,// padding
         ],
     };
 
-    pub const MaxGpuClockRate: MailboxTagMessage<6> = MailboxTagMessage {
-        size: (9 * mem::size_of::<u32>() as u32),
+    pub const MaxGpuClockRate: MailboxTagMessage<5> = MailboxTagMessage {
+        size: (8 * mem::size_of::<u32>() as u32),
         status: 0,
         tag: MailboxTag::GetMaxClockRate,
         payload: [
@@ -71,7 +70,6 @@ impl MailboxMessage {
             8,   // ?
             0x5, // GPU Channel
             0,   // used by the response
-            0,
             LAST_TAG,  // padding
         ],
     };
@@ -280,8 +278,8 @@ impl<const TAGS: usize> MailboxTagMessage<TAGS> {
             core::ptr::read_volatile(match resp_idx {
                 0 => &self.size,
                 1 => &self.status,
-                i if (resp_idx >= 2) && ((resp_idx - 2) < self.payload.len()) => {
-                    &self.payload[i - 2]
+                i if (resp_idx >= 3) && ((resp_idx - 3) < self.payload.len()) => {
+                    &self.payload[i - 3]
                 }
                 _ => bail!(MailboxError::ReadResponse(String::from(
                     "index out of bounds"

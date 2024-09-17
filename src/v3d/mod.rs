@@ -98,7 +98,7 @@ pub fn init() -> Result<(), V3DError> {
     // let rate = message.get_idx(6);
 
     let rate = MailboxMessage::MaxGpuClockRate
-        .send_and_read(5)
+        .send_and_read(6)
         .map_err(|_| V3DError::Init)?;
     info!(
         "Max clock speed for GPU CORE is: {:?}Mhz",
@@ -130,7 +130,7 @@ pub fn init() -> Result<(), V3DError> {
     //     .map_err(|_| V3DError::CurrentClockRequest)?;
     // let rate = message2.get_idx(6);
     let rate = MailboxMessage::CurrentGpuClockRate
-        .send_and_read(5)
+        .send_and_read(6)
         .map_err(|_| V3DError::CurrentClockRequest)?;
 
     info!(
