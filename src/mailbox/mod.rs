@@ -2,8 +2,6 @@ use crate::bail;
 use crate::framebuffer::FrameBuffer; // videocoremboxbase: 3F00B880 resp-successful: 0
 use crate::{info, mailbox::ReqResp::ResponseSuccessful};
 use core::mem;
-use core::ops::Deref;
-use core::ptr::addr_of;
 // use log::info;
 // use space_invaders::{SCREEN_HEIGHT, SCREEN_WIDTH}; // we hard set these here for now, should
 // really ask the HVS for the screen H and W
@@ -48,6 +46,7 @@ const FB_VIRTUAL_OFFSET_Y: u32 = 0;
 #[derive(Debug)]
 pub enum MailboxError {
     SendMessage(String),
+    ReadResponse(String),
     SetVirtFB,
     SetClockSpeed,
     GetMaxSpeed,
@@ -60,6 +59,9 @@ impl core::fmt::Display for MailboxError {
         let msg = match self {
             MailboxError::SendMessage(c) => {
                 &format(format_args!("Failed to send mailbox message: {}", c))
+            }
+            MailboxError::ReadResponse(c) => {
+                &format(format_args!("Failed to read response: {}", c))
             }
             MailboxError::SetVirtFB => {
                 "Failed to sending message to set virtual framebuffer offset."
@@ -81,7 +83,7 @@ impl core::error::Error for MailboxError {}
 
 // TODO: wrap into registers map lib
 #[repr(C)]
-struct RawMailbox {
+pub(crate) struct RawMailbox {
     read: ReadOnly<u32>,
     _unused: u32,
     _unused2: u32,
@@ -104,7 +106,7 @@ impl RawMailbox {
         status & STATUS_EMPTY == STATUS_EMPTY
     }
 
-    fn is_full(&self) -> bool {
+    pub(crate) fn is_full(&self) -> bool {
         let status = self.get_status();
         status & STATUS_FULL == STATUS_FULL
     }
@@ -424,7 +426,7 @@ fn get_test_virtual_fb_offset_message(
     let mut ret = [0u32; TEST_SET_VIRTUAL_FRAMEBUFFER_OFFSET_MESSAGE_SIZE];
     ret[0] = (TEST_SET_VIRTUAL_FRAMEBUFFER_OFFSET_MESSAGE_SIZE * mem::size_of::<u32>()) as u32;
     ret[1] = MBOX_REQUEST;
-    ret[2] = MailboxTag::SetVirtualOffset; // set virtual buffer offset
+    ret[2] = MailboxTag::SetVirtualOffset as _; // set virtual buffer offset
     ret[3] = 2 * mem::size_of::<u32>() as u32; // value buffer size in bytes
     ret[4] = 0; // :b 31 clear: request, | b31 set: response b30-b0: value length in bytes
     ret[5] = 0; // x in pixels
@@ -438,7 +440,7 @@ fn get_current_clock_rate_message() -> Message<GET_CURRENT_CLOCK_RATE_MESSAGE_SI
     ret[0] = (GET_CURRENT_CLOCK_RATE_MESSAGE_SIZE * mem::size_of::<u32>()) as u32;
     ret[1] = MBOX_REQUEST;
 
-    ret[2] = MailboxTag::GetClockRate; // set clock rate
+    ret[2] = MailboxTag::GetClockRate as _; // set clock rate
     ret[3] = 8; // value buffer size in bytes
     ret[4] = 8; // clock id
     ret[5] = 0x3; // rate in hz
@@ -453,7 +455,7 @@ fn get_set_clock_rate_message(new_clock_hz: u32) -> Message<GET_CLOCK_RATE_MESSA
     ret[0] = (GET_CLOCK_RATE_MESSAGE_SIZE * mem::size_of::<u32>()) as u32;
     ret[1] = MBOX_REQUEST;
 
-    ret[2] = MailboxTag::SetClockRate; // set clock rate
+    ret[2] = MailboxTag::SetClockRate as _; // set clock rate
     ret[3] = 8; // value buffer size in bytes
     ret[4] = 8; // clock id
     ret[5] = 0x3; // rate in hz
@@ -470,7 +472,7 @@ fn max_clock_rate_message() -> Message<MAX_CLOCK_RATE_MESSAGE_SIZE> {
     ret[1] = MBOX_REQUEST;
 
     // tag:
-    ret[2] = MailboxTag::GetMaxClockRate; // get serial number command
+    ret[2] = MailboxTag::GetMaxClockRate as _; // get serial number command
     ret[3] = 8; // value buffer size in bytes
     ret[4] = 8; // :b 31 clear: request, | b31 set: response b30-b0: value length in bytes
 

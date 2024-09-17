@@ -92,12 +92,14 @@ impl Deref for GLcommands {
 */
 //commented for now since not being used, but here when needed
 pub fn init() -> Result<(), V3DError> {
-    let message = max_gpu_clock_rate_message();
-    send_message_sync(mailbox::Channel::PROP, &message).map_err(|_| V3DError::MaxClockRequest)?;
-    //let message = message.clone();
-    let rate = message.get_idx(6);
-    // let rate2 = *rate;
-    // info!("R: {:?}", rate);
+    // let message = max_gpu_clock_rate_message();
+    // send_message_sync(mailbox::Channel::PROP, &message).map_err(|_| V3DError::MaxClockRequest)?;
+    // let rate = message.get_idx(6);
+
+    let rate = MailboxMessage::MaxGpuClockRate
+        .send_and_read(6)
+        .map_err(|_| V3DError::Init)?;
+
     info!(
         "Max clock speed for GPU CORE is: {:?}Mhz",
         rate as f64 / 1_000_000.0 // rate2 as f64 / 1_000_000.0
@@ -105,7 +107,7 @@ pub fn init() -> Result<(), V3DError> {
     let mut ret = [0u32; 13];
     ret[0] = (13 * mem::size_of::<u32>()) as u32;
     ret[1] = 0;
-    ret[2] = MailboxTag::SetClockRate; //set clock
+    ret[2] = MailboxTag::SetClockRate as _; //set clock
     ret[3] = 8;
     ret[4] = 8;
     ret[5] = 5; //channel
@@ -123,13 +125,14 @@ pub fn init() -> Result<(), V3DError> {
     check_v3d_ident0()?;
     info!("We Passed V3D Check!");
 
-    let message2 = get_current_gpu_clock_rate_message();
-    send_message_sync(mailbox::Channel::PROP, &message2)
+    // let message2 = get_current_gpu_clock_rate_message();
+    // send_message_sync(mailbox::Channel::PROP, &message2)
+    //     .map_err(|_| V3DError::CurrentClockRequest)?;
+    // let rate = message2.get_idx(6);
+    let rate = MailboxMessage::CurrentGpuClockRate
+        .send_and_read(6)
         .map_err(|_| V3DError::CurrentClockRequest)?;
-    // let message2 = message2.clone();
-    let rate = message2.get_idx(6);
-    // let rate2 = *rate;
-    // info!("R: {:?}", rate);
+
     info!(
         "Rate Readback to check GPU CORE is: {:?}Mhz",
         rate as f64 / 1_000_000.0 // rate2 as f64 / 1_000_000.0
