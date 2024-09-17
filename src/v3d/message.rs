@@ -56,7 +56,9 @@ impl MailboxMessage {
         payload: [
             8, // value buffer size in bytes
             8, 0x5, // clock id
-            0, LAST_TAG, 0, // padding
+            0,
+            0,
+            LAST_TAG,// padding
         ],
     };
 
@@ -67,9 +69,10 @@ impl MailboxMessage {
         payload: [
             8,   // ?
             8,   // ?
-            0x5, // ?
+            0x5, // GPU Channel
             0,   // used by the response
-            LAST_TAG, 0, // padding
+            0,
+            LAST_TAG,  // padding
         ],
     };
 

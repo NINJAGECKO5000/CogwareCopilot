@@ -1,4 +1,4 @@
-use core::mem;
+use core::{mem, ptr::read_volatile};
 
 use crate::{
     info,
@@ -11,6 +11,7 @@ const V3D_BASE_PTR: *mut u32 = (RPI_IO_BASE_ADDR + V3D_OFFSET) as *mut u32;
 mod message;
 mod registers;
 
+use alloc::vec;
 pub use message::*;
 pub use registers::V3DRegisters;
 
@@ -97,9 +98,8 @@ pub fn init() -> Result<(), V3DError> {
     // let rate = message.get_idx(6);
 
     let rate = MailboxMessage::MaxGpuClockRate
-        .send_and_read(6)
+        .send_and_read(5)
         .map_err(|_| V3DError::Init)?;
-
     info!(
         "Max clock speed for GPU CORE is: {:?}Mhz",
         rate as f64 / 1_000_000.0 // rate2 as f64 / 1_000_000.0
@@ -113,7 +113,7 @@ pub fn init() -> Result<(), V3DError> {
     ret[5] = 5; //channel
     ret[6] = rate; //V3D Clock rate
                    // ret[6] = rate2; //V3D Clock rate
-    ret[2] = 0x00030012; // enable QPU
+    ret[2] = MailboxTag::EnableQpu as u32; // enable QPU
     ret[3] = 4;
     ret[4] = 4;
     ret[5] = 1;
@@ -130,7 +130,7 @@ pub fn init() -> Result<(), V3DError> {
     //     .map_err(|_| V3DError::CurrentClockRequest)?;
     // let rate = message2.get_idx(6);
     let rate = MailboxMessage::CurrentGpuClockRate
-        .send_and_read(6)
+        .send_and_read(5)
         .map_err(|_| V3DError::CurrentClockRequest)?;
 
     info!(
