@@ -27,6 +27,8 @@ const FILL_SHADER: [u32; 12] = [
     0x009E7000, 0x100009E7, // nop; nop; nop
 ];
 
+const ALIGN_128_BITS: u32 = 0xFFFFFF80;
+
 pub type Vc4Addr = u32;
 pub type GpuHandle = u32;
 
@@ -139,7 +141,7 @@ impl Scene {
     }
 
     pub fn add_vertices(&mut self) -> Result<(), SceneError> {
-        self.vertex_vc4 = (self.loadpos + 127) & 0xFFFFFF80; // align to 128bits
+        self.vertex_vc4 = self.new_record_addr();
         let mut writer = Writer::new(self.vertex_vc4, 0x10000);
         // let ptr = gpu_to_arm_addr(self.vertex_vc4) as *mut u8;
 
@@ -219,7 +221,7 @@ impl Scene {
 
         let index_data = &[0, 1, 2, 3, 4, 5, 4, 6, 5];
 
-        self.index_vertex = (self.loadpos + 127) & 0xFFFFFF80; // align to 128bits
+        self.index_vertex = self.new_record_addr();
         let mut writer = Writer::new(self.index_vertex, index_data.len());
         writer.write(index_data);
 
@@ -238,10 +240,40 @@ impl Scene {
     }
 
     pub fn add_shader(&mut self, shader: &[u32]) -> Result<(), SceneError> {
-        todo!()
+        self.shader_start = self.new_record_addr();
+        let mut writer = Writer::new(
+            self.shader_start,
+            shader.len() * core::mem::size_of::<u32>(),
+        );
+
+        shader.iter().for_each(|val| writer.write(val.as_bytes()));
+        self.loadpos = self.shader_start + writer.bytes_written() as u32;
+        drop(writer);
+
+        self.frag_shader_rec_start = self.new_record_addr();
+
+        let shader_record = [
+            [0x01u8, 6 * 4, 0xcc, 3],
+            self.shader_start.to_ne_bytes(),
+            0u32.to_ne_bytes(),
+            self.vertex_vc4.to_ne_bytes(),
+        ];
+        let record_bytes = shader_record.as_bytes();
+
+        let mut writer = Writer::new(self.frag_shader_rec_start, record_bytes.len());
+        writer.write(&record_bytes);
+        self.loadpos = self.frag_shader_rec_start + writer.bytes_written() as u32;
+
+        Ok(())
     }
 
     pub fn setup_render_control(&mut self, framebuffer: u32) -> Result<(), SceneError> {
+        self.render_control = self.new_record_addr();
+
+        let clear_colors = &[
+            114, // GL_CLEAR_COLORS
+        ];
+
         todo!()
     }
 
@@ -251,6 +283,10 @@ impl Scene {
 
     pub fn render(&self) -> Result<(), SceneError> {
         todo!()
+    }
+
+    pub fn new_record_addr(&self) -> u32 {
+        (self.loadpos + 127) & ALIGN_128_BITS
     }
 }
 
