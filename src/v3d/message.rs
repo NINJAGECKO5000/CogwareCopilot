@@ -37,40 +37,39 @@ pub struct MailboxMessage;
 impl MailboxMessage {
     pub const CurrentArmClockRate: MailboxTagMessage<6> = MailboxTagMessage {
         size: (9 * mem::size_of::<u32>() as u32),
-        status: 0,
         tag: MailboxTag::GetClockRate,
+        status: 0,
         payload: [8, 8, 0x3, 0, LAST_TAG, 0],
     };
 
     pub const MaxArmClockRate: MailboxTagMessage<6> = MailboxTagMessage {
         size: (9 * mem::size_of::<u32>() as u32),
-        status: 0,
         tag: MailboxTag::GetMaxClockRate,
+        status: 0,
         payload: [8, 8, 0x3, 0, LAST_TAG, 0],
     };
 
     pub const CurrentGpuClockRate: MailboxTagMessage<5> = MailboxTagMessage {
         size: (8 * mem::size_of::<u32>() as u32),
-        status: 0,
         tag: MailboxTag::GetClockRate,
+        status: 0,
         payload: [
             8, // value buffer size in bytes
             8, 0x5, // clock id
-            0,
-            LAST_TAG,// padding
+            0, LAST_TAG, // padding
         ],
     };
 
     pub const MaxGpuClockRate: MailboxTagMessage<5> = MailboxTagMessage {
         size: (8 * mem::size_of::<u32>() as u32),
-        status: 0,
         tag: MailboxTag::GetMaxClockRate,
+        status: 0,
         payload: [
-            8,   // ?
-            8,   // ?
-            0x5, // GPU Channel
-            0,   // used by the response
-            LAST_TAG,  // padding
+            8,        // ?
+            8,        // ?
+            0x5,      // GPU Channel
+            0,        // used by the response
+            LAST_TAG, // padding
         ],
     };
 
