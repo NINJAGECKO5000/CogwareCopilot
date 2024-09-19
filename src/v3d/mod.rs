@@ -8,6 +8,8 @@ const RPI_IO_BASE_ADDR: usize = 0x3F00_0000; // Replace with actual base address
 const V3D_OFFSET: usize = 0xc00000;
 const V3D_BASE_PTR: *mut u32 = (RPI_IO_BASE_ADDR + V3D_OFFSET) as *mut u32;
 
+pub mod buffer;
+pub mod flags;
 mod message;
 mod registers;
 
