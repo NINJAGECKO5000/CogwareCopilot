@@ -230,6 +230,28 @@ impl Scene {
 
         Ok(())
     }
+
+    pub fn add_test_shaders(&mut self) -> Result<(), SceneError> {
+        self.add_shader(&VERTEX_SHADER)?;
+        self.add_shader(&FILL_SHADER)?;
+        Ok(())
+    }
+
+    pub fn add_shader(&mut self, shader: &[u32]) -> Result<(), SceneError> {
+        todo!()
+    }
+
+    pub fn setup_render_control(&mut self, framebuffer: u32) -> Result<(), SceneError> {
+        todo!()
+    }
+
+    pub fn setup_binning_config(&mut self) -> Result<(), SceneError> {
+        todo!()
+    }
+
+    pub fn render(&self) -> Result<(), SceneError> {
+        todo!()
+    }
 }
 
 #[derive(Debug)]

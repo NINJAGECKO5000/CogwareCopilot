@@ -12,6 +12,7 @@ extern crate alloc;
 
 pub mod cpu;
 use cogware_kernel::*;
+use gl::Scene;
 use mailbox::{max_clock_speed, set_clock_speed};
 
 use alloc::string::String;
@@ -88,8 +89,6 @@ unsafe fn kernel_init() -> ! {
         //     timer.delay_ns(500_000_000);
         // }*/
         // let mut fb = mailbox::lfb_init(0).expect("Failed to init framebuffer");
-        let mut fb = mailbox::lfb_init().expect("Failed to init framebuffer");
-        fb.display_boot_image();
         // let u = u.assume_init();
     }
 
@@ -99,6 +98,9 @@ unsafe fn kernel_init() -> ! {
 
 /// The main function running after the early init.
 fn kernel_main() -> ! {
+    let mut fb = mailbox::lfb_init().expect("Failed to init framebuffer");
+    fb.display_boot_image();
+
     info!(
         "{} version {}",
         env!("CARGO_PKG_NAME"),
@@ -164,6 +166,21 @@ fn kernel_main() -> ! {
     cs.set_mode(gpio::PinMode::Output);
 
     let mut timer = Timer::new();
+
+    let mut scene = Scene::init(480, 480).expect("failed to initialize scene");
+    scene
+        .add_vertices()
+        .expect("failed to add vertices to scene");
+    scene
+        .add_test_shaders()
+        .expect("failed to add shaders to scene");
+    scene
+        .setup_render_control(&fb.framebuff as *const _ as u32)
+        .expect("failed to set up render control");
+    scene
+        .setup_binning_config()
+        .expect("failed to set up binning config");
+    scene.render().expect("failed to render scene");
     // HyperPixel::new(peripherals.GPIO, &mut timer).set_gpio_mode();
 
     /*let mut spi = SPIZero::new(&peripherals.SPI0);
