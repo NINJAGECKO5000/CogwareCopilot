@@ -167,22 +167,29 @@ fn kernel_main() -> ! {
 
     let mut timer = Timer::new();
 
-    let mut scene = Scene::init(480, 480).expect("failed to initialize scene");
+    /*let mut scene = Scene::init(480, 480).expect("failed to initialize scene");
     scene
         .add_vertices()
         .expect("failed to add vertices to scene");
     scene
         .add_test_shaders()
         .expect("failed to add shaders to scene");
+    info!("render_control");
     scene
         .setup_render_control(&fb.framebuff as *const _ as u32)
         .expect("failed to set up render control");
+    info!("binning_config");
     scene
         .setup_binning_config()
         .expect("failed to set up binning config");
     unsafe {
+        info!("render!!!");
         scene.render().expect("failed to render scene");
-    }
+    }*/
+
+    Scene::rawdog_triangle(&fb.framebuff as *const _ as u32);
+
+
     // HyperPixel::new(peripherals.GPIO, &mut timer).set_gpio_mode();
 
     /*let mut spi = SPIZero::new(&peripherals.SPI0);
