@@ -180,7 +180,9 @@ fn kernel_main() -> ! {
     scene
         .setup_binning_config()
         .expect("failed to set up binning config");
-    scene.render().expect("failed to render scene");
+    unsafe {
+        scene.render().expect("failed to render scene");
+    }
     // HyperPixel::new(peripherals.GPIO, &mut timer).set_gpio_mode();
 
     /*let mut spi = SPIZero::new(&peripherals.SPI0);

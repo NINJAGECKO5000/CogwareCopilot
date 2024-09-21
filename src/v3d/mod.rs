@@ -144,7 +144,7 @@ pub fn init() -> Result<(), V3DError> {
 }
 
 // The memory address for the V3D base address
-const fn get_v3d_ptr() -> *mut u32 {
+pub const fn get_v3d_ptr() -> *mut u32 {
     V3D_BASE_PTR
 }
 
