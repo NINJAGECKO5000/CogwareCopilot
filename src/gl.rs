@@ -579,11 +579,11 @@ impl Scene {
 }
 
 unsafe fn read_v3d(reg: u32) -> u32 {
-    core::ptr::read_volatile(get_v3d_ptr().add(reg as _))
+    core::ptr::read_volatile(get_v3d_ptr().add(reg as usize / 4))
 }
 
 unsafe fn write_v3d(reg: u32, val: u32) {
-    core::ptr::write_volatile(get_v3d_ptr().add(reg as usize), val);
+    core::ptr::write_volatile(get_v3d_ptr().add(reg as usize / 4), val);
 }
 
 #[derive(Debug)]
@@ -595,7 +595,7 @@ pub enum SceneError {
 
 fn mem_alloc(size: u32, align: u32, flags: u32) -> Result<GpuHandle, SceneError> {
     let handle = MailboxMessage::mem_alloc(size, align, flags)
-        .send_and_read(3)
+        .send_and_read(5)
         .map_err(|_| SceneError::AllocMemory)?;
 
     Ok(handle)
@@ -603,7 +603,7 @@ fn mem_alloc(size: u32, align: u32, flags: u32) -> Result<GpuHandle, SceneError>
 
 fn mem_lock(handle: GpuHandle) -> Result<Vc4Addr, SceneError> {
     MailboxMessage::mem_lock(handle)
-        .send_and_read(3)
+        .send_and_read(5)
         .map_err(|_| SceneError::LockMemory)
 }
 
