@@ -410,9 +410,10 @@ impl Scene {
     pub fn setup_render_control(&mut self, fb_addr: u32) -> Result<(), SceneError> {
         self.render_control = self.new_record_addr();
         // this seems like a bad idea but I don't really care rn, thisis all going away anyway
-        let mut writer = Writer::new(self.vertex_vc4, 0x10000);
+        let mut writer = Writer::new(self.render_control, 0x10000);
 
         writer.write(&[
+            114, // GL_CLEAR_COLORS_IDIOT_WTF
             0xff, 0x00, 0x00, 0x00, // opaque black
             0xff, 0x00, 0x00, 0x00, // repeat because OpenGL I guess
             0x00, 0x00, 0x00, 0x00, // idk why we do this
@@ -452,7 +453,7 @@ impl Scene {
     }
 
     pub fn setup_binning_config(&mut self) -> Result<(), SceneError> {
-        let mut writer = Writer::new(self.binning_data, 0x10000);
+        let mut writer = Writer::new(self.binning_handle, 0x10000);
         writer.write(
             TileBinningConfig::new(
                 self.tile_data_buffer,
@@ -536,11 +537,14 @@ impl Scene {
         // that C people love to do
         //
         // original was `while (v3d[V3D_CT0CS] & 0x20);`
+        info!("while CL0CS != 0");
         while read_v3d(V3DReg::ControlList0CS) & 0x20 != 0 {
+            info!("waiting for 0CS");
             core::hint::spin_loop();
         }
 
         // run our control list
+        info!("waiting for BinningFlushCnt to be 0");
         write_v3d(V3DReg::BinningFlushCnt, 1);
         write_v3d(V3DReg::ControlList0CA, self.binning_data);
         write_v3d(V3DReg::ControlList0EA, self.binning_cfg_end);
