@@ -6,8 +6,8 @@ use core::mem;
 // use space_invaders::{SCREEN_HEIGHT, SCREEN_WIDTH}; // we hard set these here for now, should
 // really ask the HVS for the screen H and W
 
-pub const SCREEN_HEIGHT: u32 = 480;
-pub const SCREEN_WIDTH: u32 = 480;
+pub const SCREEN_HEIGHT: u32 = 1024;
+pub const SCREEN_WIDTH: u32 = 1280;
 // const ResponseSuccessful: u32 = 0;
 const VIDEOCORE_MBOX_BASE: u32 = 0x3F00B880;
 

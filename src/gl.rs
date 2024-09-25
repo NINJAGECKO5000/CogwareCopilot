@@ -2,9 +2,13 @@
 
 use core::ops::Deref;
 
+use alloc::{format, string::String};
 use zerocopy::AsBytes;
 
-use crate::{info, v3d::{self, buffer::Writer, get_v3d_ptr, MailboxMessage, V3DError}};
+use crate::{
+    info,
+    v3d::{self, buffer::Writer, get_v3d_ptr, MailboxMessage, V3DError},
+};
 
 const VERTEX_SHADER: [u32; 18] = [
     0x958e0dbf, 0xd1724823, /* mov r0, vary; mov r3.8d, 1.0 */
@@ -86,29 +90,29 @@ pub struct Scene {
 #[derive(Debug, AsBytes)]
 pub struct TileRenderModeConfig {
     cmd: u8,
-    fb_ptr: u32,
     render_width: u16,
     render_height: u16,
-    something1: u8,
-    something2: u8,
+    format: u32,
+    other: u8,
+    fb_ptr: u32,
 }
 
 // const GL_CLEAR_COLORS: u8 = 114;
 impl TileRenderModeConfig {
     pub fn new(
-        fb_ptr: u32,
         render_width: u16,
         render_height: u16,
-        something1: u8,
-        something2: u8,
+        format: u32,
+        other: u8,
+        fb_ptr: u32,
     ) -> Self {
         Self {
             cmd: 113, // GL_TILE_RENDER_CONFIG
-            fb_ptr,
             render_width,
             render_height,
-            something1,
-            something2,
+            format,
+            other,
+            fb_ptr,
         }
     }
 }
@@ -119,6 +123,8 @@ pub struct TileCoords {
     cmd: u8,
     arg1: u8,
     arg2: u8,
+    cmd2: u8,
+    cmd3: u8
 }
 
 impl TileCoords {
@@ -127,6 +133,8 @@ impl TileCoords {
             cmd: 115,
             arg1,
             arg2,
+            cmd2: 56,
+            cmd3: 0x12 // cmd2 ad 3 added from android driver
         }
     }
 }
@@ -235,10 +243,7 @@ impl Scene {
         let loadpos = render_data;
         let bus_addr = render_data;
 
-        let bin_width = (render_width as u32 + 63) / 64;
-        let bin_height = (render_height as u32 + 63) / 64;
-
-        let tile_mem_size = 0x4000;
+        let tile_mem_size = 0x8000;
         let tile_handle = mem_alloc(
             tile_mem_size * 2,
             0x1000,
@@ -260,31 +265,19 @@ impl Scene {
             render_data,
             render_width,
             render_height,
-            bin_width,
-            bin_height,
             tile_handle,
             tile_mem_size,
             tile_state_data,
             tile_data_buffer,
             binning_handle,
             binning_data,
-            ..Default::default() // shader_start: todo!(),
-                                 // frag_shader_rec_start: todo!(),
-                                 // render_control: todo!(),
-                                 // render_control_end: todo!(),
-                                 // vertex_vc4: todo!(),
-                                 // num_verts: todo!(),
-                                 // index_vertex: todo!(),
-                                 // index_vertex_cnt: todo!(),
-                                 // max_index_vertex: todo!(),
-                                 // binning_cfg_end: todo!(),
+            ..Default::default()
         })
     }
 
     pub fn add_vertices(&mut self) -> Result<(), SceneError> {
         self.vertex_vc4 = self.new_record_addr();
         let mut writer = Writer::new(self.vertex_vc4, 0x10000);
-        // let ptr = gpu_to_arm_addr(self.vertex_vc4) as *mut u8;
 
         let center_x = self.render_width as u32 / 2;
         let center_y = ((self.render_height / 2) as f32 * 0.4) as u32;
@@ -292,69 +285,62 @@ impl Scene {
         let half_shape_height = ((self.render_height / 2) as f32 * 0.3) as u32;
 
         // Vertex: Top, red
-        writer.write(&(center_x << 4 as u16).as_bytes());
-        writer.write(&((center_y - half_shape_height) << 4 as u16).as_bytes());
-        writer.write(&1.0f32.as_bytes());
-        writer.write(&1.0f32.as_bytes());
-        writer.write(&1.0f32.as_bytes());
-        writer.write(&0.0f32.as_bytes());
-        writer.write(&0.0f32.as_bytes());
+        writer.write((center_x << 4 as u16).as_bytes());
+        writer.write(((center_y - half_shape_height) << 4 as u16).as_bytes());
+        let top_verticies: [f32; 5] = [1.0, 1.0, 1.0, 0.0, 0.0];
+        top_verticies
+            .iter()
+            .for_each(|&val| writer.write(&val.as_bytes()));
 
         // Vertex: bottom left, blue
-        writer.write(&((center_x - half_shape_width) << 4 as u16).as_bytes());
-        writer.write(&((center_y + half_shape_height) << 4 as u16).as_bytes());
-        writer.write(&1.0f32.as_bytes());
-        writer.write(&1.0f32.as_bytes());
-        writer.write(&0.0f32.as_bytes());
-        writer.write(&0.0f32.as_bytes());
-        writer.write(&1.0f32.as_bytes());
+        writer.write(((center_x - half_shape_width) << 4 as u16).as_bytes());
+        writer.write(((center_y + half_shape_height) << 4 as u16).as_bytes());
+        let bottem_left_verticies: [f32; 5] = [1.0, 1.0, 0.0, 0.0, 1.0];
+        bottem_left_verticies
+            .iter()
+            .for_each(|&val| writer.write(&val.as_bytes()));
 
         // Vertex: bottom right, green
-        writer.write(&((center_x + half_shape_width) << 4 as u16).as_bytes());
-        writer.write(&((center_y + half_shape_height) << 4 as u16).as_bytes());
-        writer.write(&1.0f32.as_bytes());
-        writer.write(&1.0f32.as_bytes());
-        writer.write(&0.0f32.as_bytes());
-        writer.write(&1.0f32.as_bytes());
-        writer.write(&0.0f32.as_bytes());
+        writer.write(((center_x + half_shape_width) << 4 as u16).as_bytes());
+        writer.write(((center_y + half_shape_height) << 4 as u16).as_bytes());
+        let bottem_right_verticies: [f32; 5] = [1.0, 1.0, 0.0, 1.0, 0.0];
+        bottem_right_verticies
+            .iter()
+            .for_each(|&val| writer.write(&val.as_bytes()));
 
         let center_y = ((self.render_height / 2) as f32 * 1.35) as u32;
 
         // Vertex: Top left, blue
-        writer.write(&((center_x - half_shape_width) << 4 as u16).as_bytes());
-        writer.write(&((center_y - half_shape_height) << 4 as u16).as_bytes());
-        writer.write(&1.0f32.as_bytes());
-        writer.write(&1.0f32.as_bytes());
-        writer.write(&0.0f32.as_bytes());
-        writer.write(&0.0f32.as_bytes());
-        writer.write(&1.0f32.as_bytes());
+        writer.write(((center_x - half_shape_width) << 4 as u16).as_bytes());
+        writer.write(((center_y - half_shape_height) << 4 as u16).as_bytes());
+        let top_left_verticies: [f32; 5] = [1.0, 1.0, 0.0, 0.0, 1.0];
+        top_left_verticies
+            .iter()
+            .for_each(|&val| writer.write(&val.as_bytes()));
 
         // Vertex: bottom left, green
-        writer.write(&((center_x - half_shape_width) << 4 as u16).as_bytes());
-        writer.write(&((center_y + half_shape_height) << 4 as u16).as_bytes());
-        writer.write(&1.0f32.as_bytes());
-        writer.write(&1.0f32.as_bytes());
-        writer.write(&0.0f32.as_bytes());
-        writer.write(&1.0f32.as_bytes());
-        writer.write(&0.0f32.as_bytes());
+        writer.write(((center_x - half_shape_width) << 4 as u16).as_bytes());
+        writer.write(((center_y + half_shape_height) << 4 as u16).as_bytes());
+        let bottem_left_square_verticies: [f32; 5] = [1.0, 1.0, 0.0, 1.0, 0.0];
+        bottem_left_square_verticies
+            .iter()
+            .for_each(|&val| writer.write(&val.as_bytes()));
 
         // Vertex: top right, red
-        writer.write(&((center_x + half_shape_width) << 4 as u16).as_bytes());
-        writer.write(&((center_y - half_shape_height) << 4 as u16).as_bytes());
-        writer.write(&1.0f32.as_bytes());
-        writer.write(&1.0f32.as_bytes());
-        writer.write(&1.0f32.as_bytes());
-        writer.write(&0.0f32.as_bytes());
-        writer.write(&0.0f32.as_bytes());
+        writer.write(((center_x + half_shape_width) << 4 as u16).as_bytes());
+        writer.write(((center_y - half_shape_height) << 4 as u16).as_bytes());
+        let top_right_verticies: [f32; 5] = [1.0, 1.0, 1.0, 0.0, 0.0];
+        top_right_verticies
+            .iter()
+            .for_each(|&val| writer.write(&val.as_bytes()));
 
         // Vertex: bottom right, yellow
-        writer.write(&((center_x + half_shape_width) << 4 as u16).as_bytes());
-        writer.write(&((center_y - half_shape_height) << 4 as u16).as_bytes());
-        writer.write(&1.0f32.as_bytes());
-        writer.write(&1.0f32.as_bytes());
-        writer.write(&0.0f32.as_bytes());
-        writer.write(&1.0f32.as_bytes());
-        writer.write(&1.0f32.as_bytes());
+        writer.write(((center_x + half_shape_width) << 4 as u16).as_bytes());
+        writer.write(((center_y - half_shape_height) << 4 as u16).as_bytes());
+        let bottem_right_square_verticies: [f32; 5] = [1.0, 1.0, 0.0, 1.0, 1.0];
+        bottem_right_square_verticies
+            .iter()
+            .for_each(|&val| writer.write(&val.as_bytes()));
 
         self.num_verts = 7;
         self.loadpos = self.vertex_vc4 + writer.bytes_written() as u32;
@@ -366,8 +352,8 @@ impl Scene {
         let mut writer = Writer::new(self.index_vertex, index_data.len());
         writer.write(index_data);
 
-        self.index_vertex_cnt = index_data.len() as u32;
-        self.max_index_vertex = 6;
+        self.index_vertex_cnt = 9;
+        self.max_index_vertex = 9;
 
         self.loadpos = self.index_vertex + writer.bytes_written() as u32;
 
@@ -398,7 +384,7 @@ impl Scene {
             self.shader_start.to_ne_bytes(),
             0u32.to_ne_bytes(),
             self.vertex_vc4.to_ne_bytes(),
-        ];
+        ].concat();
         let record_bytes = shader_record.as_bytes();
 
         let mut writer = Writer::new(self.frag_shader_rec_start, record_bytes.len());
@@ -420,39 +406,110 @@ impl Scene {
             0x00,
         ]);
 
-        writer.write(
-            TileRenderModeConfig::new(fb_addr, self.render_width, self.render_height, 0x04, 0x00)
-                .as_bytes(),
-        );
+        //writer.write(
+        //    TileRenderModeConfig::new(fb_addr, self.render_width, self.render_height, 0x04, 0x00)
+        //        .as_bytes(),
+        //);
 
         // do this first to force the tile buffer to be cleared
         writer.write(TileCoords::new(0, 0).as_bytes());
         writer.write(TileBuffer::new(0, 0).as_bytes());
-
+        writer.write(&[1]);
+        writer.write(&[1]); // 1's from android driver
         // we iterate up until the last binny boy...
-        for x in 0..self.bin_width - 1 {
-            for y in 0..self.bin_height - 1 {
+        for y in 0..self.bin_height - 1 {
+            for x in 0..self.bin_width - 1 {
                 writer.write(TileCoords::new(x as u8, y as u8).as_bytes());
                 writer.write(&[17]); // GL_BRANCH_TO_SUBLIST
-                writer.write((self.tile_data_buffer + (y * self.bin_width + x) * 32).as_bytes());
+                writer.write((self.tile_data_buffer + ((y + x * self.bin_width) * 32)).as_bytes());
                 // ??????
-                writer.write(&[24]); // GL_STORE_MULTISAMPLE
+                
+                if (x == self.bin_width - 1) && (y == self.bin_height - 1){
+                    writer.write(&[25]); // GL_STORE_MULTISAMPLE_END <-- special boi
+                }
+                else {
+                    writer.write(&[24]); // GL_STORE_MULTISAMPLE
+                }
             }
         }
-
         // because the last one is special or whatever idk
-        writer.write(
-            TileCoords::new((self.bin_width - 1) as u8, (self.bin_height - 1) as u8).as_bytes(),
-        );
-        writer.write(&[25]); // GL_STORE_MULTISAMPLE_END
+        //writer.write(
+        //    TileCoords::new((self.bin_width - 1) as u8, (self.bin_height - 1) as u8).as_bytes(),
+        //); //^ moved up into if fn from android driver
+        //writer.write(&[25]); // GL_STORE_MULTISAMPLE_END
 
         self.loadpos = self.render_control + writer.bytes_written() as u32;
-        self.render_control_end = self.loadpos;
+        self.render_control_end = (self.loadpos + 127) & ALIGN_128_BITS;
+        info!("loadpos: {:#16x}", self.loadpos);
+        Ok(())
+    }
+
+    pub fn create_render_list( &mut self, fb_addr: u32, render_width: u16, render_height: u16) -> Result<(), SceneError>{
+        use v3d::flags::MemAllocFlags;
+
+        let bin_width = (render_width as u32 + 31) >>5;
+        let bin_height = (render_height as u32 + 31) >>5;
+        
+        let size = ((bin_width * bin_height *20) + 37);
+        
+        self.render_handle = mem_alloc( //not released
+            size,
+            0x1000,
+            MemAllocFlags::Coherent | MemAllocFlags::Zero,
+        )?;
+        
+
+        //SRC and DEST IMG HERE lock taken and not released on these
+        //FMT SETTINGS HERE
+
+        mem_lock(self.tile_data_buffer); //will be released at the end
+        let tile_render_config = 
+            TileRenderModeConfig::new(self.render_width, self.render_height,0x04, 0, fb_addr);
+
+        self.render_control = mem_lock(self.render_handle)?;
+        self.render_control = self.new_record_addr();
+        let mut writer = Writer::new(self.render_control, 0x10000);
+
+        writer.write(&[114]);
+        writer.write(0u32.as_bytes());
+        writer.write(0u32.as_bytes());
+        writer.write(0u32.as_bytes());
+        writer.write(&[0]);
+
+        writer.write(tile_render_config.as_bytes());
+
+        writer.write(&[115]);
+        writer.write(&[0]);
+        writer.write(&[0]);
+        writer.write(&[28]);
+        writer.write(0u16.as_bytes());
+        writer.write(0u32.as_bytes());
+        writer.write(&[1]);
+        writer.write(&[1]);
+
+        for y in 0..self.bin_height {
+            for x in 0..self.bin_width {
+                writer.write(TileCoords::new(x as u8, y as u8).as_bytes());
+                writer.write(&[17]); // GL_BRANCH_TO_SUBLIST
+                writer.write((self.tile_data_buffer + ((y + x * self.bin_width) * 32)).as_bytes());
+                
+                if (x == self.bin_width - 1) && (y == self.bin_height - 1){
+                    writer.write(&[25]); // GL_STORE_MULTISAMPLE_END <-- special boi
+                }
+                else {
+                    writer.write(&[24]); // GL_STORE_MULTISAMPLE
+                }
+            }
+        }
+        self.render_control_end = self.render_control + writer.bytes_written() as u32;
+        //mem_unlock(self.tile_data_buffer);
 
         Ok(())
     }
 
+
     pub fn setup_binning_config(&mut self) -> Result<(), SceneError> {
+        self.binning_handle = self.new_record_addr();
         let mut writer = Writer::new(self.binning_handle, 0x10000);
         writer.write(
             TileBinningConfig::new(
@@ -471,7 +528,7 @@ impl Scene {
         // primitive type
         writer.write(&[
             56,   // GL_PRIMITIVE_LIST_FORMAT
-            0x32, // idk what this is lol
+            0x12, //android driver 16 bit triangle
         ]);
 
         // clip window
@@ -479,9 +536,9 @@ impl Scene {
 
         writer.write(&[
             96,   // GL_CONFIG_STATE
-            0x03, // just
-            0x00, // magic
-            0x02, // bullshit
+            (1 | (1<<1)), // just
+            0, // magic
+            (1<<1), // bullshit
         ]);
 
         writer.write(ViewportOffset::new(0, 0).as_bytes());
@@ -530,7 +587,7 @@ impl Scene {
 
         // stop the thread
         write_v3d(V3DReg::ControlList0CS, 0x20);
-
+        check_v3d_status();
         // wait for it to stop
         //
         // TODO: is this logic right? I always forget how to convert this kind of garbage logic
@@ -538,265 +595,22 @@ impl Scene {
         //
         // original was `while (v3d[V3D_CT0CS] & 0x20);`
         info!("while CL0CS != 0");
-        while read_v3d(V3DReg::ControlList0CS) & 0x20 != 0{
+        while read_v3d(V3DReg::ControlList0CS) & 0x20 != 0 {
             info!("waiting for 0CS");
             core::hint::spin_loop();
         }
 
         // run our control list
+        
         write_v3d(V3DReg::BinningFlushCnt, 1);
+        info!("while Binningflscount != 0");
+        while read_v3d(V3DReg::BinningFlushCnt) != 0 { // bot says to wait after pushing flush count
+            core::hint::spin_loop();
+        }
+        write_v3d(V3DReg::ControlList0CS, 0x1);
         write_v3d(V3DReg::ControlList0CA, self.binning_data);
         write_v3d(V3DReg::ControlList0EA, self.binning_cfg_end);
-
-        // wait for binning to finish
-        info!("while Binningflscount != 0");
-        while read_v3d(V3DReg::BinningFlushCnt) == 0 {
-            core::hint::spin_loop();
-        }
-
-        // stop the thread
-        write_v3d(V3DReg::ControlList1CS, 0x20);
-
-        // wait for thread to stop
-        //
-        // TODO: same stupid C shit as above
-        // I think this is right but idk
-        info!("while CL1CS != 0");
-        while read_v3d(V3DReg::ControlList1CS) & 0x20 != 0 {
-            core::hint::spin_loop();
-        }
-
-        // run the god damn renderer finally
-        write_v3d(V3DReg::RenderFrameCnt, 1);
-        write_v3d(V3DReg::ControlList1CA, self.render_control);
-        write_v3d(V3DReg::ControlList1EA, self.render_control_end);
-        info!("wait for framecount");
-        while read_v3d(V3DReg::RenderFrameCnt) == 0 {
-            //info!("RFC {:?}", read_v3d(V3DReg::RenderFrameCnt));
-            core::hint::spin_loop();
-        }
-
-        Ok(()) // probably not ok lol
-    }
-
-
-
-
-
-
-
-    pub fn rawdog_triangle(fb_addr: u32){
-        let render_width = 480;
-        let render_height = 480;
-        let buffer_tile_data:u32 = 0x6000;
-        use v3d::flags::MemAllocFlags;
-
-        let render_handle = mem_alloc(
-            0x800000,
-            0x1000,
-            MemAllocFlags::Coherent | MemAllocFlags::Zero,
-        ).expect("bingus");
-        info!("render handle: {:?}", render_handle);
-        let render_data = mem_lock(render_handle);
-        
-        let bus_addr = render_data.expect("bingus") as u32;
-
-        let bin_width = (render_width as u32 + 63) / 64;
-        let bin_height = (render_height as u32 + 63) / 64;
-
-
-        let mut writer = Writer::new(bus_addr, 800000);
-        writer.write(&[112]); //GL TILE BINNING CONFIG
-        writer.write(buffer_tile_data.as_bytes());
-        writer.write(0x4000.as_bytes());
-        writer.write(0x200.as_bytes()); //buffertilestate
-        writer.write(bin_width.as_bytes());
-        writer.write(bin_height.as_bytes());
-        writer.write(&[0x04]);
-
-        writer.write(&[6]); //start tile binning
-
-        writer.write(&[56]); //prim list format
-        writer.write(&[0x32]);
-
-        writer.write(&[102]); //clip window
-        writer.write(&[0]);
-        writer.write(render_width.as_bytes());
-        writer.write(render_height.as_bytes());
-
-        writer.write(&[96]); //config state
-        writer.write(&[0x03]);
-        writer.write(&[0x00]);
-        writer.write(&[0x02]);
-
-        writer.write(&[103]); //viewportoffset
-        writer.write(&[0]);
-        writer.write(&[0]);
-
-        writer.write(&[65]); //nv shader state
-        writer.write((bus_addr + 0x80).as_bytes()); //buffer shader offset
-
-        writer.write(&[32]); //prim index list
-        writer.write(&[4]);
-        writer.write(&[9]);
-        writer.write((bus_addr + 0x70).as_bytes());
-        writer.write(&[6]);
-
-        //flush
-        writer.write(&[5]);
-        writer.write(&[1]);
-        writer.write(&[0]);
-
-        let length = writer.bytes_written();
-        writer = Writer::new(bus_addr + 0x80, 800000);
-
-        writer.write(&[0x01]);
-        writer.write(&[(6 * 4)]);
-        writer.write(&[0xcc]);
-        writer.write(&[3]);
-        writer.write((bus_addr + 0xfe00).as_bytes());
-        writer.write((bus_addr + 0xff00).as_bytes());
-        writer.write((bus_addr + 0x100).as_bytes());
-
-        let center_x = render_width as u32 / 2;
-        let center_y = ((render_height / 2) as f32 * 0.4) as u32;
-        let half_shape_width = ((center_x as f32) * 0.4) as u32;
-        let half_shape_height = ((render_height / 2) as f32 * 0.3) as u32;
-
-        writer = Writer::new(bus_addr + 0x100, 800000);
-
-        // Vertex: Top, red
-        writer.write(&(center_x << 4 as u16).as_bytes());
-        writer.write(&((center_y - half_shape_height) << 4 as u16).as_bytes());
-        writer.write(&1.0f32.as_bytes());
-        writer.write(&1.0f32.as_bytes());
-        writer.write(&1.0f32.as_bytes());
-        writer.write(&0.0f32.as_bytes());
-        writer.write(&0.0f32.as_bytes());
-
-        // Vertex: bottom left, blue
-        writer.write(&((center_x - half_shape_width) << 4 as u16).as_bytes());
-        writer.write(&((center_y + half_shape_height) << 4 as u16).as_bytes());
-        writer.write(&1.0f32.as_bytes());
-        writer.write(&1.0f32.as_bytes());
-        writer.write(&0.0f32.as_bytes());
-        writer.write(&0.0f32.as_bytes());
-        writer.write(&1.0f32.as_bytes());
-
-        // Vertex: bottom right, green
-        writer.write(&((center_x + half_shape_width) << 4 as u16).as_bytes());
-        writer.write(&((center_y + half_shape_height) << 4 as u16).as_bytes());
-        writer.write(&1.0f32.as_bytes());
-        writer.write(&1.0f32.as_bytes());
-        writer.write(&0.0f32.as_bytes());
-        writer.write(&1.0f32.as_bytes());
-        writer.write(&0.0f32.as_bytes());
-
-        let center_y = ((render_height / 2) as f32 * 1.35) as u32;
-
-        // Vertex: Top left, blue
-        writer.write(&((center_x - half_shape_width) << 4 as u16).as_bytes());
-        writer.write(&((center_y - half_shape_height) << 4 as u16).as_bytes());
-        writer.write(&1.0f32.as_bytes());
-        writer.write(&1.0f32.as_bytes());
-        writer.write(&0.0f32.as_bytes());
-        writer.write(&0.0f32.as_bytes());
-        writer.write(&1.0f32.as_bytes());
-
-        // Vertex: bottom left, green
-        writer.write(&((center_x - half_shape_width) << 4 as u16).as_bytes());
-        writer.write(&((center_y + half_shape_height) << 4 as u16).as_bytes());
-        writer.write(&1.0f32.as_bytes());
-        writer.write(&1.0f32.as_bytes());
-        writer.write(&0.0f32.as_bytes());
-        writer.write(&1.0f32.as_bytes());
-        writer.write(&0.0f32.as_bytes());
-
-        // Vertex: top right, red
-        writer.write(&((center_x + half_shape_width) << 4 as u16).as_bytes());
-        writer.write(&((center_y - half_shape_height) << 4 as u16).as_bytes());
-        writer.write(&1.0f32.as_bytes());
-        writer.write(&1.0f32.as_bytes());
-        writer.write(&1.0f32.as_bytes());
-        writer.write(&0.0f32.as_bytes());
-        writer.write(&0.0f32.as_bytes());
-
-        // Vertex: bottom right, yellow
-        writer.write(&((center_x + half_shape_width) << 4 as u16).as_bytes());
-        writer.write(&((center_y - half_shape_height) << 4 as u16).as_bytes());
-        writer.write(&1.0f32.as_bytes());
-        writer.write(&1.0f32.as_bytes());
-        writer.write(&0.0f32.as_bytes());
-        writer.write(&1.0f32.as_bytes());
-        writer.write(&1.0f32.as_bytes());
-
-
-        writer = Writer::new(bus_addr + 0x70, 800000);
-        writer.write(&[0]);
-        writer.write(&[1]);
-        writer.write(&[2]);
-
-        writer.write(&[3]);
-        writer.write(&[4]);
-        writer.write(&[5]);
-
-        writer.write(&[4]);
-        writer.write(&[6]);
-        writer.write(&[5]);
-
-        writer = Writer::new(bus_addr + 0xfe00, 800000);
-        
-        VERTEX_SHADER.iter().for_each(|val| writer.write(val.as_bytes()));
-
-        writer = Writer::new(bus_addr + 0xe200, 800000);
-        let rend1 = writer.bytes_written();
-        writer.write(&[114]);
-        writer.write((0xff000000 as u32).as_bytes());
-        writer.write((0xff000000 as u32).as_bytes());
-        writer.write(&[0]);
-        writer.write(&[0]);
-
-        writer.write(&[113]);
-        writer.write(fb_addr.as_bytes());
-        writer.write(render_width.as_bytes());
-        writer.write(render_height.as_bytes());
-
-        writer.write(&[0x04]);
-        writer.write(&[0x00]);
-
-        writer.write(&[115]);
-        writer.write(&[0]);
-        writer.write(&[0]);
-
-        writer.write(&[28]);
-        writer.write((0x0000 as u16).as_bytes());
-        writer.write((0x0000 as u32).as_bytes());
-
-        for x in 0..bin_width - 1 {
-            for y in 0..bin_height - 1 {
-                writer.write(TileCoords::new(x as u8, y as u8).as_bytes());
-                writer.write(&[17]); // GL_BRANCH_TO_SUBLIST
-                writer.write((0x6000 + (y * bin_width + x) * 32).as_bytes());
-                // ??????
-                writer.write(&[24]); // GL_STORE_MULTISAMPLE
-            }
-        }
-        writer.write(&[25]);
-        let rend2 = writer.bytes_written() - rend1;
-
-        use crate::v3d::V3DRegisters as V3DReg;
-
-        // run our control list
-        write_v3d(V3DReg::BinningFlushCnt, 1);
-        write_v3d(V3DReg::ControlList0CA, bus_addr);
-        write_v3d(V3DReg::ControlList0EA, bus_addr + length as u32);
-
-        info!("while CL0CS != 0");
-        while read_v3d(V3DReg::ControlList0CS) & 0x20 != 0{
-            info!("waiting for 0CS");
-            core::hint::spin_loop();
-        }
-
+        check_v3d_status();
         // wait for binning to finish
         info!("while Binningflscount != 0");
         while read_v3d(V3DReg::BinningFlushCnt) != 0 {
@@ -814,40 +628,133 @@ impl Scene {
         while read_v3d(V3DReg::ControlList1CS) & 0x20 != 0 {
             core::hint::spin_loop();
         }
-
+        check_v3d_status();
         // run the god damn renderer finally
         write_v3d(V3DReg::RenderFrameCnt, 1);
-        write_v3d(V3DReg::ControlList1CA, bus_addr + 0xe200);
-        write_v3d(V3DReg::ControlList1EA, bus_addr + 0xe200 + rend2 as u32);
+        write_v3d(V3DReg::ControlList1CA, self.render_control);
+        write_v3d(V3DReg::ControlList1EA, self.render_control_end);
+
+        //write_v3d(V3DReg::ControlList1CS, 0x20);
+
+        core::hint::spin_loop();
+
+        let bingus = read_v3d(V3DReg::ControlList1CA);
+        info!("CL1 Current Address: {:#16x}", bingus & !0xC0000000);
+        check_v3d_status();
         info!("wait for framecount");
         while read_v3d(V3DReg::RenderFrameCnt) == 0 {
             //info!("RFC {:?}", read_v3d(V3DReg::RenderFrameCnt));
             core::hint::spin_loop();
         }
 
+        Ok(()) // probably not ok lol
     }
 
-
-
-
+    
 
     pub fn new_record_addr(&self) -> u32 {
         (self.loadpos + 127) & ALIGN_128_BITS
     }
-
 }
 
 fn read_v3d(reg: u32) -> u32 {
-    unsafe{
-    core::ptr::read_volatile(get_v3d_ptr().add(reg as usize / 4 ))
-    }
+    unsafe { core::ptr::read_volatile(get_v3d_ptr().add(reg as usize / 4)) }
 }
 
 fn write_v3d(reg: u32, val: u32) {
-unsafe{
-    core::ptr::write_volatile(get_v3d_ptr().add(reg as usize / 4), val);
+    unsafe {
+        core::ptr::write_volatile(get_v3d_ptr().add(reg as usize / 4), val);
+    }
 }
+
+pub fn check_v3d_status() {
+    use crate::v3d::V3DRegisters as V3DReg;
+
+    let mut report = String::from("V3D Core Status Report:\n");
+
+    // Check Control List 0 (binning) status and errors
+    let ct0_status = read_v3d(V3DReg::ControlList0CS);
+    report.push_str(&format!("Control List 0 Status: 0x{:X}\n", ct0_status));
+    if ct0_status & 0xE00 != 0 {
+        report.push_str("Errors in Control List 0:\n");
+        if ct0_status & 0x200 != 0 {
+            report.push_str("  - Out of Memory\n");
+        }
+        if ct0_status & 0x400 != 0 {
+            report.push_str("  - Queue Full\n");
+        }
+        if ct0_status & 0x800 != 0 {
+            report.push_str("  - DMA Overflow\n");
+        }
+    } else {
+        report.push_str("  No errors in Control List 0.\n");
+    }
+
+    // Check Control List 1 (rendering) status and errors
+    let ct1_status = read_v3d(V3DReg::ControlList1CS);
+    report.push_str(&format!("Control List 1 Status: 0x{:X}\n", ct1_status));
+    if ct1_status & 0xE00 != 0 {
+        report.push_str("Errors in Control List 1:\n");
+        if ct1_status & 0x200 != 0 {
+            report.push_str("  - Out of Memory\n");
+        }
+        if ct1_status & 0x400 != 0 {
+            report.push_str("  - Queue Full\n");
+        }
+        if ct1_status & 0x800 != 0 {
+            report.push_str("  - DMA Overflow\n");
+        }
+    } else {
+        report.push_str("  No errors in Control List 1.\n");
+    }
+
+
+    // Performance Counters
+    let perf_counter0 = read_v3d(V3DReg::PerfCntrCnt0); // Cache hits
+    let perf_counter1 = read_v3d(V3DReg::PerfCntrCnt1); // Cache misses
+    let perf_counter2 = read_v3d(V3DReg::PerfCntrCnt2); // Vertex shader stalls
+    let perf_counter3 = read_v3d(V3DReg::PerfCntrCnt3); // Instruction fetch stalls
+    report.push_str(&format!(
+        "Performance Counters:\n  - Cache Hits: {}\n  - Cache Misses: {}\n  - Vertex Shader Stalls: {}\n  - Instruction Fetch Stalls: {}\n",
+        perf_counter0, perf_counter1, perf_counter2, perf_counter3
+    ));
+
+    // V3D Identifier Registers
+    let ident0 = read_v3d(V3DReg::Ident0);
+    let ident1 = read_v3d(V3DReg::Ident1);
+    let ident2 = read_v3d(V3DReg::Ident2);
+    report.push_str(&format!(
+        "V3D Identifiers:\n  - Ident0: 0x{:X}\n  - Ident1: 0x{:X}\n  - Ident2: 0x{:X}\n",
+        ident0, ident1, ident2
+    ));
+
+    // L2 Cache and Slice Cache Control
+    let l2_cache_ctrl = read_v3d(V3DReg::L2CacheCtrl);
+    let slice_cache_ctrl = read_v3d(V3DReg::SliceCacheCtrl);
+    report.push_str(&format!(
+        "Cache Controls:\n  - L2 Cache Control: 0x{:X}\n  - Slice Cache Control: 0x{:X}\n",
+        l2_cache_ctrl, slice_cache_ctrl
+    ));
+
+    // Check Binning and Rendering Completion
+    let binning_flush_count = read_v3d(V3DReg::BinningFlushCnt);
+    let render_frame_count = read_v3d(V3DReg::RenderFrameCnt);
+    report.push_str("Pipeline Status:\n");
+    if binning_flush_count == 0 {
+        report.push_str("  - Binning complete.\n");
+    } else {
+        report.push_str(&format!("  - Binning in progress ({} flushes remaining).\n", binning_flush_count));
+    }
+    if render_frame_count == 0 {
+        report.push_str("  - Rendering complete.\n");
+    } else {
+        report.push_str(&format!("  - Rendering in progress ({} frames remaining).\n", render_frame_count));
+    }
+
+    // Final consolidated status output
+    info!("{}", report);
 }
+
 
 #[derive(Debug)]
 pub enum SceneError {
@@ -858,7 +765,7 @@ pub enum SceneError {
 
 fn mem_alloc(size: u32, align: u32, flags: u32) -> Result<GpuHandle, SceneError> {
     let handle = MailboxMessage::mem_alloc(size, align, flags)
-        .send_and_read(3)
+        .send_and_read(5)
         .map_err(|_| SceneError::AllocMemory)?;
 
     Ok(handle)
@@ -866,9 +773,8 @@ fn mem_alloc(size: u32, align: u32, flags: u32) -> Result<GpuHandle, SceneError>
 
 fn mem_lock(handle: GpuHandle) -> Result<Vc4Addr, SceneError> {
     MailboxMessage::mem_lock(handle)
-        .send_and_read(3)
+        .send_and_read(5)
         .map_err(|_| SceneError::LockMemory)
-    
 }
 
 impl core::fmt::Display for SceneError {

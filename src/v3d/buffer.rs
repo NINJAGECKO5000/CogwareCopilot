@@ -1,3 +1,5 @@
+use crate::info;
+
 pub struct Writer {
     buf: *mut [u8],
     offset: usize,
@@ -5,9 +7,10 @@ pub struct Writer {
 
 impl Writer {
     pub fn new(arm_addr: u32, len: usize) -> Writer {
-        let ptr = (arm_addr & 0xC0000000) as *mut u8;
+        // 
+        let ptr = (arm_addr & !0xC0000000) as *mut u8;
         let start = unsafe { core::slice::from_raw_parts_mut(ptr, len) } as *mut _;
-
+        info!("writer start {:?}", start);
         Writer {
             buf: start,
             offset: 0,

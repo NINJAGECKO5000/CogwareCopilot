@@ -167,7 +167,7 @@ fn kernel_main() -> ! {
 
     let mut timer = Timer::new();
 
-    /*let mut scene = Scene::init(480, 480).expect("failed to initialize scene");
+    let mut scene = Scene::init(1280, 1024).expect("failed to initialize scene");
     scene
         .add_vertices()
         .expect("failed to add vertices to scene");
@@ -185,10 +185,8 @@ fn kernel_main() -> ! {
     unsafe {
         info!("render!!!");
         scene.render().expect("failed to render scene");
-    }*/
-
-    Scene::rawdog_triangle(&fb.framebuff as *const _ as u32);
-
+    }
+    fb.update();
 
     // HyperPixel::new(peripherals.GPIO, &mut timer).set_gpio_mode();
 
