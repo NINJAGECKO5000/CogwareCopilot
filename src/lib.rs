@@ -13,7 +13,7 @@ pub mod console;
 pub mod driver;
 pub mod fb_trait;
 pub mod framebuffer;
-pub mod gl;
+//pub mod gl;
 pub mod hvs;
 pub mod hyperpixel;
 pub mod mailbox;
@@ -22,6 +22,9 @@ pub mod print;
 pub mod synchronization;
 pub mod time;
 pub mod v3d;
+pub mod egl;
+pub mod glesv2;
+pub mod testtriangle;
 
 #[macro_export]
 macro_rules! bail {

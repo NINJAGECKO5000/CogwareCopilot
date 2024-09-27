@@ -12,7 +12,7 @@ extern crate alloc;
 
 pub mod cpu;
 use cogware_kernel::*;
-use gl::Scene;
+//use gl::Scene;
 use mailbox::{max_clock_speed, set_clock_speed};
 
 use alloc::string::String;
@@ -167,7 +167,11 @@ fn kernel_main() -> ! {
 
     let mut timer = Timer::new();
 
-    let mut scene = Scene::init(480, 480).expect("failed to initialize scene");
+    let framebuffer_ptr: *mut core::ffi::c_void = fb.framebuff.as_mut_ptr() as *mut core::ffi::c_void;
+    
+    let trianglerenderer = testtriangle::TriangleRenderer::init(framebuffer_ptr);
+
+    /*let mut scene = Scene::init(480, 480).expect("failed to initialize scene");
     scene
         .add_vertices()
         .expect("failed to add vertices to scene");
@@ -182,7 +186,9 @@ fn kernel_main() -> ! {
         .expect("failed to set up binning config");
     unsafe {
         scene.render().expect("failed to render scene");
-    }
+    }*/
+
+
     // HyperPixel::new(peripherals.GPIO, &mut timer).set_gpio_mode();
 
     /*let mut spi = SPIZero::new(&peripherals.SPI0);
@@ -276,6 +282,7 @@ fn kernel_main() -> ! {
         info!("{:?}", dispgauge8);
         info!("{:?}", dispgauge9);*/
         //^commented for V3D testing
+        trianglerenderer.draw();
         info!("Spinning for 1 second");
         time::time_manager().spin_for(Duration::from_secs(1));
     }
