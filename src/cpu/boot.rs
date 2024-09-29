@@ -4,6 +4,6 @@
 
 //! Boot code.
 
-#[cfg(target_arch = "aarch64")]
-#[path = "../_arch/aarch64/cpu/boot.rs"]
+#[cfg(target_arch = "arm")]
+#[path = "../_arch/cortex_a/cpu/boot.rs"]
 mod arch_boot;

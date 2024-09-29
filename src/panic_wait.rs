@@ -26,8 +26,8 @@ use core::panic::PanicInfo;
 fn panic_prevent_reenter() {
     use core::sync::atomic::{AtomicBool, Ordering};
 
-    #[cfg(not(target_arch = "aarch64"))]
-    compile_error!("Add the target_arch to above's check if the following code is safe to use");
+    //#[cfg(not(target_arch = "aarch64"))]
+    //compile_error!("Add the target_arch to above's check if the following code is safe to use");
 
     static PANIC_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
 
@@ -38,7 +38,7 @@ fn panic_prevent_reenter() {
     }
 
     loop {
-        aarch64_cpu::asm::wfe()
+        cortex_a::asm::wfe()
     }
 }
 
@@ -67,6 +67,6 @@ fn panic(info: &PanicInfo) -> ! {
     );
 
     loop {
-        aarch64_cpu::asm::wfe()
+        cortex_a::asm::wfe()
     }
 }

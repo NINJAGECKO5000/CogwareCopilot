@@ -24,9 +24,9 @@ DEV_SERIAL ?= /dev/ttyUSB0
 QEMU_MISSING_STRING = "This board is not yet supported for QEMU."
 
 ifeq ($(BSP),rpi3)
-    TARGET            = aarch64-unknown-none-softfloat
+    TARGET            = armv7r-none-eabi
     KERNEL_BIN        = kernel8.img
-    QEMU_BINARY       = qemu-system-aarch64
+    QEMU_BINARY       = qemu-system-arm
     QEMU_MACHINE_TYPE = raspi3
     QEMU_RELEASE_ARGS = -serial stdio -display none
     OBJDUMP_BINARY    = aarch64-none-elf-objdump
@@ -82,7 +82,7 @@ COMPILER_ARGS = --target=$(TARGET) \
     $(FEATURES)                    \
     --release
 
-RUSTC_CMD   = cargo rustc $(COMPILER_ARGS)
+RUSTC_CMD   = cargo rustc --verbose $(COMPILER_ARGS)
 DOC_CMD     = cargo doc $(COMPILER_ARGS)
 CLIPPY_CMD  = cargo clippy $(COMPILER_ARGS)
 OBJCOPY_CMD = rust-objcopy \

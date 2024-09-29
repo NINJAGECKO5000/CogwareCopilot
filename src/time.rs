@@ -4,8 +4,8 @@
 
 //! Timer primitives.
 
-#[cfg(target_arch = "aarch64")]
-#[path = "_arch/aarch64/time.rs"]
+#[cfg(target_arch = "arm")]
+#[path = "_arch/cortex_a/time.rs"]
 mod arch_time;
 
 use core::time::Duration;

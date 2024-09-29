@@ -257,7 +257,7 @@ impl PL011UartInner {
     fn write_char(&mut self, c: char) {
         // Spin while TX FIFO full is set, waiting for an empty slot.
         while self.registers.FR.matches_all(FR::TXFF::SET) {
-            aarch64_cpu::asm::nop();
+            cortex_a::asm::nop();
         }
 
         // Write the character to the buffer.
@@ -270,7 +270,7 @@ impl PL011UartInner {
     fn flush(&self) {
         // Spin until the busy bit is cleared.
         while self.registers.FR.matches_all(FR::BUSY::SET) {
-            aarch64_cpu::asm::nop();
+            cortex_a::asm::nop();
         }
     }
 
@@ -285,7 +285,7 @@ impl PL011UartInner {
 
             // Otherwise, wait until a char was received.
             while self.registers.FR.matches_all(FR::RXFE::SET) {
-                aarch64_cpu::asm::nop();
+                cortex_a::asm::nop();
             }
         }
 

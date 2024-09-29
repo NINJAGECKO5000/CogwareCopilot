@@ -4,8 +4,8 @@
 
 //! Processor code.
 
-#[cfg(target_arch = "aarch64")]
-#[path = "_arch/aarch64/cpu.rs"]
+#[cfg(target_arch = "arm")]
+#[path = "_arch/cortex_a/cpu.rs"]
 mod arch_cpu;
 
 mod boot;

@@ -1,2 +1,2 @@
 [build]
-target = "aarch64-unknown-none-softfloat"
+target = "armv7r-none-eabi"
