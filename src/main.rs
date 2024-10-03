@@ -167,7 +167,7 @@ fn kernel_main() -> ! {
 
     let mut timer = Timer::new();
 
-    let mut scene = Scene::init(480, 480).expect("failed to initialize scene");
+    let mut scene = Scene::init(1280, 1024).expect("failed to initialize scene");
     scene
         .add_vertices()
         .expect("failed to add vertices to scene");
